@@ -27,10 +27,8 @@ func NewAuthHandler(db *gorm.DB, jwtService *jwt.JWTService) *AuthHandler {
 
 // RegisterRoutes registers all routes related to authentication
 func (h *AuthHandler) RegisterRoutes(router fiber.Router) {
-	auth := router.Group("/auth")
-
-	auth.Post("/login", h.Login)
-	auth.Post("/register", h.Register)
+	router.Post("/login", h.Login)
+	router.Post("/register", h.Register)
 }
 
 // Login godoc

@@ -122,6 +122,11 @@ func (s *NotificationService) CreateNotification(
 
 // sendWebsocketNotification sends a notification through websocket
 func (s *NotificationService) sendWebsocketNotification(notif notification.Notification) {
+	// Skip if websocketHub is nil
+	if s.websocketHub == nil {
+		return
+	}
+
 	// Prepare the notification payload
 	payload := map[string]interface{}{
 		"id":             notif.ID,

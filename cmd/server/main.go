@@ -25,26 +25,19 @@ import (
 	pkgws "github.com/ybds/pkg/websocket"
 )
 
-// @title YBDS API
-// @version 1.0
-// @description API Server for YBDS Application
-// @termsOfService http://swagger.io/terms/
-
-// @contact.name API Support
-// @contact.email your-email@domain.com
-
-// @license.name Apache 2.0
-// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
-
-// @host localhost:3000
-// @BasePath /api
-// @schemes http https
 func main() {
 	// Load configuration
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
+
+	// Debug: Print database configuration
+	log.Printf("DB_HOST: %s", cfg.AccountDB.Host)
+	log.Printf("DB_PORT: %s", cfg.AccountDB.Port)
+	log.Printf("DB_USER: %s", cfg.AccountDB.User)
+	log.Printf("DB_NAME: %s", cfg.AccountDB.Name)
+	log.Printf("DB_SSL_MODE: %s", cfg.AccountDB.SSLMode)
 
 	// Initialize database connection
 	db, err := pkgdb.NewDatabase(&cfg.AccountDB)
@@ -110,11 +103,11 @@ func main() {
 		})
 	})
 
-	// Register auth routes
-	auth := api.Group("/auth")
-	authHandler.RegisterRoutes(auth)
+	// Public routes that don't require authentication
+	api.Post("/auth/login", authHandler.Login)
+	api.Post("/auth/register", authHandler.Register)
 
-	// Register websocket route
+	// Register websocket route with its own middleware
 	wsHandler := pkgws.NewHandler(hub, func(c *fiber.Ctx) (string, []string, error) {
 		userID, ok := c.Locals("user_id").(string)
 		if !ok {
@@ -129,24 +122,55 @@ func main() {
 		return userID, roles, nil
 	})
 
-	api.Use("/ws", wsHandler.Middleware())
-	api.Get("/ws", fiberwsocket.New(wsHandler.HandleConnection))
+	wsGroup := api.Group("/ws")
+	wsGroup.Use(wsHandler.Middleware())
+	wsGroup.Get("/", fiberwsocket.New(wsHandler.HandleConnection))
 
-	// Create authenticated routes
+	// Protected routes that require authentication
+	// Create authenticated routes group
 	authenticated := api.Group("/")
 	authenticated.Use(internalJWTService.AuthMiddleware)
 
 	// Register user routes
-	userHandler.RegisterRoutes(authenticated, internalJWTService.AuthMiddleware)
+	authenticated.Get("/users", userHandler.GetUsers)
+	authenticated.Get("/users/:id", userHandler.GetUserByID)
+	authenticated.Get("/guests/:id", userHandler.GetGuest)
 
 	// Register product routes
-	productHandler.RegisterRoutes(authenticated, internalJWTService.AuthMiddleware)
+	authenticated.Post("/products", productHandler.CreateProduct)
+	authenticated.Get("/products", productHandler.GetProducts)
+	authenticated.Get("/products/:id", productHandler.GetProductByID)
+	authenticated.Put("/products/:id", productHandler.UpdateProduct)
+	authenticated.Delete("/products/:id", productHandler.DeleteProduct)
+
+	// Inventory routes
+	authenticated.Post("/products/:id/inventories", productHandler.CreateInventory)
+	authenticated.Put("/products/inventories/:id", productHandler.UpdateInventory)
+	authenticated.Delete("/products/inventories/:id", productHandler.DeleteInventory)
+
+	// Price routes
+	authenticated.Post("/products/:id/prices", productHandler.CreatePrice)
+	authenticated.Put("/products/prices/:id", productHandler.UpdatePrice)
+	authenticated.Delete("/products/prices/:id", productHandler.DeletePrice)
 
 	// Register order routes
-	orderHandler.RegisterRoutes(authenticated, internalJWTService.AuthMiddleware)
+	authenticated.Post("/orders", orderHandler.CreateOrder)
+	authenticated.Get("/orders", orderHandler.GetOrders)
+	authenticated.Get("/orders/:id", orderHandler.GetOrderByID)
+	authenticated.Put("/orders/:id/status", orderHandler.UpdateOrderStatus)
+	authenticated.Put("/orders/:id/payment", orderHandler.UpdatePaymentStatus)
+	authenticated.Delete("/orders/:id", orderHandler.DeleteOrder)
+
+	// Order item routes
+	authenticated.Post("/orders/:id/items", orderHandler.AddOrderItem)
+	authenticated.Put("/orders/items/:id", orderHandler.UpdateOrderItem)
+	authenticated.Delete("/orders/items/:id", orderHandler.DeleteOrderItem)
 
 	// Register notification routes
-	notificationHandler.RegisterRoutes(authenticated, internalJWTService.AuthMiddleware)
+	authenticated.Get("/notifications", notificationHandler.GetNotifications)
+	authenticated.Get("/notifications/unread", notificationHandler.GetUnreadNotifications)
+	authenticated.Put("/notifications/:id/read", notificationHandler.MarkAsRead)
+	authenticated.Put("/notifications/read-all", notificationHandler.MarkAllAsRead)
 
 	// Start server
 	serverPort := fmt.Sprintf(":%s", cfg.Server.Port)

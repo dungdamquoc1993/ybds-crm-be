@@ -2,6 +2,7 @@ package services
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"github.com/ybds/pkg/jwt"
 )
 
@@ -49,8 +50,14 @@ func (s *JWTServiceWrapper) AuthMiddleware(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusUnauthorized, "Invalid or expired token")
 	}
 
+	// Convert user ID string to UUID
+	userID, err := uuid.Parse(claims.UserID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusUnauthorized, "Invalid user ID format in token")
+	}
+
 	// Set the user ID and roles in the context
-	c.Locals("user_id", claims.UserID)
+	c.Locals("userID", userID)
 	c.Locals("roles", claims.Roles)
 
 	return c.Next()

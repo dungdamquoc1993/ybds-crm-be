@@ -24,9 +24,9 @@ type TestConfig struct {
 // loadConfig loads the test configuration from environment variables
 func loadConfig() TestConfig {
 	return TestConfig{
-		BaseURL:  getEnvOrDefault("TEST_API_URL", "http://localhost:8080"),
+		BaseURL:  getEnvOrDefault("TEST_API_URL", "http://localhost:3000"),
 		Username: getEnvOrDefault("TEST_USERNAME", "admin@example.com"),
-		Password: getEnvOrDefault("TEST_PASSWORD", "password123"),
+		Password: getEnvOrDefault("TEST_PASSWORD", "admin123"),
 	}
 }
 
@@ -58,7 +58,7 @@ func NewTestClient(baseURL string) *TestClient {
 // Login authenticates with the API
 func (c *TestClient) Login(username, password string) error {
 	loginData := map[string]string{
-		"email":    username,
+		"username": username,
 		"password": password,
 	}
 
@@ -76,6 +76,12 @@ func (c *TestClient) Login(username, password string) error {
 		Success bool   `json:"success"`
 		Message string `json:"message"`
 		Token   string `json:"token"`
+		User    struct {
+			ID       string   `json:"id"`
+			Username string   `json:"username"`
+			Email    string   `json:"email"`
+			Roles    []string `json:"roles"`
+		} `json:"user"`
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&loginResp); err != nil {
@@ -119,16 +125,19 @@ func (c *TestClient) SendRequest(method, path string, body interface{}, queryPar
 	req.Header.Set("Content-Type", "application/json")
 	if c.AuthToken != "" {
 		req.Header.Set("Authorization", "Bearer "+c.AuthToken)
+		fmt.Printf("DEBUG: Setting Authorization header: Bearer %s\n", c.AuthToken)
+	} else {
+		fmt.Println("DEBUG: No AuthToken set")
 	}
 
 	return c.HTTPClient.Do(req)
 }
 
-// TestE2EUserFlow tests the complete user flow
+// TestE2EUserFlow tests the complete user flow from login to creating and managing resources
 func TestE2EUserFlow(t *testing.T) {
-	// Skip if running in CI environment without proper setup
-	if os.Getenv("CI") != "" && os.Getenv("RUN_E2E_TESTS") != "true" {
-		t.Skip("Skipping E2E tests in CI environment")
+	// Only skip if explicitly requested
+	if os.Getenv("SKIP_E2E_TESTS") == "true" {
+		t.Skip("Skipping E2E tests as requested by environment variable")
 	}
 
 	config := loadConfig()
@@ -147,33 +156,31 @@ func TestE2EUserFlow(t *testing.T) {
 	// Test user creation
 	t.Run("CreateUser", func(t *testing.T) {
 		userData := map[string]interface{}{
-			"email":     fmt.Sprintf("test-user-%d@example.com", time.Now().Unix()),
-			"password":  "Test@123",
-			"firstName": "Test",
-			"lastName":  "User",
-			"role":      "user",
+			"email":    fmt.Sprintf("test-user-%d@example.com", time.Now().Unix()),
+			"phone":    "",
+			"password": "Test@123",
 		}
 
-		resp, err := client.SendRequest("POST", "/api/users", userData, nil)
+		resp, err := client.SendRequest("POST", "/api/auth/register", userData, nil)
 		require.NoError(t, err, "Create user request should succeed")
 		defer resp.Body.Close()
 
-		assert.Equal(t, http.StatusCreated, resp.StatusCode, "Create user should return 201")
+		assert.Equal(t, http.StatusOK, resp.StatusCode, "Create user should return 200")
 
 		var createResp struct {
-			Success bool   `json:"success"`
-			Message string `json:"message"`
-			User    struct {
-				ID string `json:"id"`
-			} `json:"user"`
+			Success  bool   `json:"success"`
+			Message  string `json:"message"`
+			UserID   string `json:"user_id"`
+			Username string `json:"username"`
+			Email    string `json:"email"`
 		}
 
 		err = json.NewDecoder(resp.Body).Decode(&createResp)
 		require.NoError(t, err, "Should decode response JSON")
 		assert.True(t, createResp.Success, "Response should indicate success")
-		assert.NotEmpty(t, createResp.User.ID, "User ID should be returned")
+		assert.NotEmpty(t, createResp.UserID, "User ID should be returned")
 
-		userID = createResp.User.ID
+		userID = createResp.UserID
 	})
 
 	// Test get user
@@ -189,16 +196,17 @@ func TestE2EUserFlow(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.StatusCode, "Get user should return 200")
 
 		var getResp struct {
-			Success bool `json:"success"`
-			User    struct {
+			Success bool   `json:"success"`
+			Message string `json:"message"`
+			Data    struct {
 				ID string `json:"id"`
-			} `json:"user"`
+			} `json:"data"`
 		}
 
 		err = json.NewDecoder(resp.Body).Decode(&getResp)
 		require.NoError(t, err, "Should decode response JSON")
 		assert.True(t, getResp.Success, "Response should indicate success")
-		assert.Equal(t, userID, getResp.User.ID, "User ID should match")
+		assert.Equal(t, userID, getResp.Data.ID, "User ID should match")
 	})
 
 	// Test product creation
@@ -220,17 +228,19 @@ func TestE2EUserFlow(t *testing.T) {
 		var createResp struct {
 			Success bool   `json:"success"`
 			Message string `json:"message"`
-			Product struct {
-				ID string `json:"id"`
-			} `json:"product"`
+			Data    struct {
+				ProductID string `json:"ProductID"`
+				Name      string `json:"Name"`
+				SKU       string `json:"SKU"`
+			} `json:"data"`
 		}
 
 		err = json.NewDecoder(resp.Body).Decode(&createResp)
 		require.NoError(t, err, "Should decode response JSON")
 		assert.True(t, createResp.Success, "Response should indicate success")
-		assert.NotEmpty(t, createResp.Product.ID, "Product ID should be returned")
+		assert.NotEmpty(t, createResp.Data.ProductID, "Product ID should be returned")
 
-		productID = createResp.Product.ID
+		productID = createResp.Data.ProductID
 	})
 
 	// Test get product
@@ -246,21 +256,22 @@ func TestE2EUserFlow(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.StatusCode, "Get product should return 200")
 
 		var getResp struct {
-			Success bool `json:"success"`
-			Product struct {
+			Success bool   `json:"success"`
+			Message string `json:"message"`
+			Data    struct {
 				ID          string `json:"id"`
 				Name        string `json:"name"`
 				Description string `json:"description"`
 				SKU         string `json:"sku"`
 				Category    string `json:"category"`
 				ImageURL    string `json:"image_url"`
-			} `json:"product"`
+			} `json:"data"`
 		}
 
 		err = json.NewDecoder(resp.Body).Decode(&getResp)
 		require.NoError(t, err, "Should decode response JSON")
 		assert.True(t, getResp.Success, "Response should indicate success")
-		assert.Equal(t, productID, getResp.Product.ID, "Product ID should match")
+		assert.Equal(t, productID, getResp.Data.ID, "Product ID should match")
 	})
 
 	// Test create inventory
@@ -283,17 +294,19 @@ func TestE2EUserFlow(t *testing.T) {
 		assert.Equal(t, http.StatusCreated, resp.StatusCode, "Create inventory should return 201")
 
 		var createResp struct {
-			Success   bool   `json:"success"`
-			Message   string `json:"message"`
-			Inventory struct {
-				ID string `json:"id"`
-			} `json:"inventory"`
+			Success bool   `json:"success"`
+			Message string `json:"message"`
+			Data    struct {
+				InventoryID string `json:"InventoryID"`
+				ProductID   string `json:"ProductID"`
+				Quantity    int    `json:"Quantity"`
+			} `json:"data"`
 		}
 
 		err = json.NewDecoder(resp.Body).Decode(&createResp)
 		require.NoError(t, err, "Should decode response JSON")
 		assert.True(t, createResp.Success, "Response should indicate success")
-		assert.NotEmpty(t, createResp.Inventory.ID, "Inventory ID should be returned")
+		assert.NotEmpty(t, createResp.Data.InventoryID, "Inventory ID should be returned")
 	})
 
 	// Test create price
@@ -319,15 +332,18 @@ func TestE2EUserFlow(t *testing.T) {
 		var createResp struct {
 			Success bool   `json:"success"`
 			Message string `json:"message"`
-			Price   struct {
-				ID string `json:"id"`
-			} `json:"price"`
+			Data    struct {
+				PriceID   string  `json:"PriceID"`
+				ProductID string  `json:"ProductID"`
+				Price     float64 `json:"Price"`
+				Currency  string  `json:"Currency"`
+			} `json:"data"`
 		}
 
 		err = json.NewDecoder(resp.Body).Decode(&createResp)
 		require.NoError(t, err, "Should decode response JSON")
 		assert.True(t, createResp.Success, "Response should indicate success")
-		assert.NotEmpty(t, createResp.Price.ID, "Price ID should be returned")
+		assert.NotEmpty(t, createResp.Data.PriceID, "Price ID should be returned")
 	})
 
 	// Test get all products
@@ -342,17 +358,23 @@ func TestE2EUserFlow(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.StatusCode, "Get products should return 200")
 
 		var getResp struct {
-			Success  bool `json:"success"`
-			Products []struct {
-				ID string `json:"id"`
-			} `json:"products"`
-			Total int `json:"total"`
+			Success bool   `json:"success"`
+			Message string `json:"message"`
+			Data    struct {
+				Products []struct {
+					ID string `json:"id"`
+				} `json:"products"`
+				Total      int64 `json:"total"`
+				Page       int   `json:"page"`
+				PageSize   int   `json:"page_size"`
+				TotalPages int   `json:"total_pages"`
+			} `json:"data"`
 		}
 
 		err = json.NewDecoder(resp.Body).Decode(&getResp)
 		require.NoError(t, err, "Should decode response JSON")
 		assert.True(t, getResp.Success, "Response should indicate success")
-		assert.Greater(t, getResp.Total, 0, "Should have at least one product")
+		assert.Greater(t, getResp.Data.Total, int64(0), "Should have at least one product")
 	})
 
 	// Test create order
@@ -361,26 +383,54 @@ func TestE2EUserFlow(t *testing.T) {
 			t.Skip("Skipping test because product creation failed")
 		}
 
-		orderData := map[string]interface{}{
-			"items": []map[string]interface{}{
-				{
-					"product_id": productID,
-					"quantity":   1,
-					"price":      99.99,
-				},
-			},
-			"shipping_address": map[string]interface{}{
-				"street":      "123 Test St",
-				"city":        "Test City",
-				"state":       "TS",
-				"postal_code": "12345",
-				"country":     "Test Country",
-			},
-			"payment_method": "credit_card",
-			"total_amount":   99.99,
+		// First, we need to get the inventory ID for the product
+		resp, err := client.SendRequest("GET", "/api/products/"+productID, nil, nil)
+		require.NoError(t, err, "Get product request should succeed")
+		defer resp.Body.Close()
+
+		var getProductResp struct {
+			Success bool   `json:"success"`
+			Message string `json:"message"`
+			Data    struct {
+				ID          string `json:"id"`
+				Inventories []struct {
+					ID string `json:"id"`
+				} `json:"inventories"`
+				Prices []struct {
+					ID string `json:"id"`
+				} `json:"prices"`
+			} `json:"data"`
 		}
 
-		resp, err := client.SendRequest("POST", "/api/orders", orderData, nil)
+		err = json.NewDecoder(resp.Body).Decode(&getProductResp)
+		require.NoError(t, err, "Should decode response JSON")
+
+		// Skip if no inventories or prices
+		if len(getProductResp.Data.Inventories) == 0 || len(getProductResp.Data.Prices) == 0 {
+			t.Skip("Skipping test because product has no inventories or prices")
+		}
+
+		inventoryID := getProductResp.Data.Inventories[0].ID
+		priceID := getProductResp.Data.Prices[0].ID
+
+		orderData := map[string]interface{}{
+			"customer_id":         userID, // Use the user ID from the CreateUser test
+			"shipping_address_id": userID, // Use the user ID as a placeholder
+			"payment_method":      "credit_card",
+			"status":              "pending",
+			"notes":               "Test order",
+			"items": []map[string]interface{}{
+				{
+					"product_id":   productID,
+					"inventory_id": inventoryID,
+					"price_id":     priceID,
+					"quantity":     1,
+					"notes":        "Test item",
+				},
+			},
+		}
+
+		resp, err = client.SendRequest("POST", "/api/orders", orderData, nil)
 		require.NoError(t, err, "Create order request should succeed")
 		defer resp.Body.Close()
 
@@ -389,15 +439,18 @@ func TestE2EUserFlow(t *testing.T) {
 		var createResp struct {
 			Success bool   `json:"success"`
 			Message string `json:"message"`
-			Order   struct {
-				ID string `json:"id"`
-			} `json:"order"`
+			Data    struct {
+				OrderID   string  `json:"OrderID"`
+				Status    string  `json:"Status"`
+				Total     float64 `json:"Total"`
+				CreatedBy string  `json:"CreatedBy"`
+			} `json:"data"`
 		}
 
 		err = json.NewDecoder(resp.Body).Decode(&createResp)
 		require.NoError(t, err, "Should decode response JSON")
 		assert.True(t, createResp.Success, "Response should indicate success")
-		assert.NotEmpty(t, createResp.Order.ID, "Order ID should be returned")
+		assert.NotEmpty(t, createResp.Data.OrderID, "Order ID should be returned")
 	})
 
 	// Test notifications
@@ -412,10 +465,15 @@ func TestE2EUserFlow(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.StatusCode, "Get notifications should return 200")
 
 		var getResp struct {
-			Success       bool `json:"success"`
-			Notifications []struct {
+			Success bool   `json:"success"`
+			Message string `json:"message"`
+			Data    []struct {
 				ID string `json:"id"`
-			} `json:"notifications"`
+			} `json:"data"`
+			Total      int64 `json:"total"`
+			Page       int   `json:"page"`
+			PageSize   int   `json:"page_size"`
+			TotalPages int   `json:"total_pages"`
 		}
 
 		err = json.NewDecoder(resp.Body).Decode(&getResp)
