@@ -8,7 +8,6 @@ import (
 	"github.com/ybds/internal/api/requests"
 	"github.com/ybds/internal/api/responses"
 	"github.com/ybds/internal/models/notification"
-	"github.com/ybds/internal/repositories"
 	"github.com/ybds/internal/services"
 	"github.com/ybds/pkg/websocket"
 	"gorm.io/gorm"
@@ -17,15 +16,13 @@ import (
 // NotificationHandler handles HTTP requests related to notifications
 type NotificationHandler struct {
 	notificationService *services.NotificationService
-	notificationRepo    *repositories.NotificationRepository
 	db                  *gorm.DB
 }
 
 // NewNotificationHandler creates a new instance of NotificationHandler
-func NewNotificationHandler(db *gorm.DB, hub *websocket.Hub) *NotificationHandler {
+func NewNotificationHandler(db *gorm.DB, notificationService *services.NotificationService, hub *websocket.Hub) *NotificationHandler {
 	return &NotificationHandler{
-		notificationService: services.NewNotificationService(db, hub),
-		notificationRepo:    repositories.NewNotificationRepository(db),
+		notificationService: notificationService,
 		db:                  db,
 	}
 }

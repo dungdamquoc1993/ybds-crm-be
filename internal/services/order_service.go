@@ -5,28 +5,27 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/ybds/internal/models/order"
-	"github.com/ybds/internal/models/product"
 	"github.com/ybds/internal/repositories"
 	"gorm.io/gorm"
 )
 
 // OrderService handles order-related business logic
 type OrderService struct {
-	db                  *gorm.DB
-	orderRepo           *repositories.OrderRepository
-	productRepo         *repositories.ProductRepository
-	userService         *UserService
-	notificationService *NotificationService
+	DB                  *gorm.DB
+	OrderRepo           *repositories.OrderRepository
+	ProductService      *ProductService
+	UserService         *UserService
+	NotificationService *NotificationService
 }
 
 // NewOrderService creates a new instance of OrderService
-func NewOrderService(db *gorm.DB, userService *UserService, notificationService *NotificationService) *OrderService {
+func NewOrderService(db *gorm.DB, productService *ProductService, userService *UserService, notificationService *NotificationService) *OrderService {
 	return &OrderService{
-		db:                  db,
-		orderRepo:           repositories.NewOrderRepository(db),
-		productRepo:         repositories.NewProductRepository(db),
-		userService:         userService,
-		notificationService: notificationService,
+		DB:                  db,
+		OrderRepo:           repositories.NewOrderRepository(db),
+		ProductService:      productService,
+		UserService:         userService,
+		NotificationService: notificationService,
 	}
 }
 
@@ -49,17 +48,17 @@ type OrderItemInfo struct {
 
 // GetOrderByID retrieves an order by ID
 func (s *OrderService) GetOrderByID(id uuid.UUID) (*order.Order, error) {
-	return s.orderRepo.GetOrderByID(id)
+	return s.OrderRepo.GetOrderByID(id)
 }
 
 // GetAllOrders retrieves all orders with pagination and filtering
 func (s *OrderService) GetAllOrders(page, pageSize int, filters map[string]interface{}) ([]order.Order, int64, error) {
-	return s.orderRepo.GetAllOrders(page, pageSize, filters)
+	return s.OrderRepo.GetAllOrders(page, pageSize, filters)
 }
 
 // GetOrdersByCustomer retrieves all orders for a customer
 func (s *OrderService) GetOrdersByCustomer(customerID uuid.UUID, customerType order.CustomerType) ([]order.Order, error) {
-	return s.orderRepo.GetOrdersByCustomer(customerID, customerType)
+	return s.OrderRepo.GetOrdersByCustomer(customerID, customerType)
 }
 
 // CreateOrder creates a new order
@@ -87,26 +86,29 @@ func (s *OrderService) CreateOrder(
 		}, fmt.Errorf("at least one item is required")
 	}
 
-	// Verify customer exists using UserService
-	var customerExists bool
-	if customerType == order.CustomerUser {
-		user, err := s.userService.GetUserByID(customerID)
-		customerExists = err == nil && user != nil
-	} else if customerType == order.CustomerGuest {
-		guest, err := s.userService.GetGuestByID(customerID)
-		customerExists = err == nil && guest != nil
-	}
+	// Check inventory availability for all items
+	for _, item := range items {
+		available, err := s.ProductService.CheckInventoryAvailability(item.InventoryID, item.Quantity)
+		if err != nil {
+			return &OrderResult{
+				Success: false,
+				Message: "Order creation failed",
+				Error:   "Inventory not found",
+			}, err
+		}
 
-	if !customerExists {
-		return &OrderResult{
-			Success: false,
-			Message: "Order creation failed",
-			Error:   "Customer not found",
-		}, fmt.Errorf("customer not found")
+		if !available {
+			inventory, _ := s.ProductService.GetInventoryByID(item.InventoryID)
+			return &OrderResult{
+				Success: false,
+				Message: "Order creation failed",
+				Error:   fmt.Sprintf("Not enough inventory for product %s", inventory.ProductID),
+			}, fmt.Errorf("not enough inventory for product %s", inventory.ProductID)
+		}
 	}
 
 	// Start transaction
-	tx := s.db.Begin()
+	tx := s.DB.Begin()
 	if tx.Error != nil {
 		return &OrderResult{
 			Success: false,
@@ -121,12 +123,12 @@ func (s *OrderService) CreateOrder(
 		CustomerType:  customerType,
 		PaymentMethod: paymentMethod,
 		PaymentStatus: "pending",
+		OrderStatus:   order.OrderPendingConfirmation,
 		TotalAmount:   0,
 		PaidAmount:    0,
-		OrderStatus:   order.OrderPendingConfirmation,
 	}
 
-	// Set CreatedBy field if provided
+	// Set created by if provided
 	if createdByID != nil {
 		o.CreatedBy = createdByID
 	}
@@ -141,10 +143,10 @@ func (s *OrderService) CreateOrder(
 	}
 
 	// Add items to order
-	var totalAmount float64
+	totalAmount := 0.0
 	for _, item := range items {
-		// Get inventory
-		inventory, err := s.productRepo.GetInventoryByID(item.InventoryID)
+		// Get inventory for product ID
+		inventory, err := s.ProductService.GetInventoryByID(item.InventoryID)
 		if err != nil {
 			tx.Rollback()
 			return &OrderResult{
@@ -154,18 +156,8 @@ func (s *OrderService) CreateOrder(
 			}, err
 		}
 
-		// Check if inventory has enough quantity
-		if inventory.Quantity < item.Quantity {
-			tx.Rollback()
-			return &OrderResult{
-				Success: false,
-				Message: "Order creation failed",
-				Error:   fmt.Sprintf("Not enough inventory for product %s", inventory.ProductID),
-			}, fmt.Errorf("not enough inventory for product %s", inventory.ProductID)
-		}
-
 		// Get current price
-		price, err := s.productRepo.GetCurrentPrice(inventory.ProductID)
+		price, err := s.ProductService.GetCurrentPrice(inventory.ProductID)
 		if err != nil {
 			tx.Rollback()
 			return &OrderResult{
@@ -217,22 +209,19 @@ func (s *OrderService) CreateOrder(
 	}
 
 	// Send notification
-	if s.notificationService != nil {
+	if s.NotificationService != nil {
 		metadata := map[string]interface{}{
-			"order_id":       o.ID.String(),
-			"customer_id":    customerID.String(),
-			"customer_type":  string(customerType),
-			"payment_method": string(paymentMethod),
-			"total_amount":   totalAmount,
-			"items_count":    len(items),
+			"order_id":        o.ID.String(),
+			"customer_id":     customerID.String(),
+			"customer_type":   string(customerType),
+			"payment_method":  string(paymentMethod),
+			"payment_status":  "pending",
+			"order_status":    string(o.OrderStatus),
+			"total_amount":    totalAmount,
+			"number_of_items": len(items),
 		}
 
-		// Add created_by to metadata if available
-		if o.CreatedBy != nil {
-			metadata["created_by"] = o.CreatedBy.String()
-		}
-
-		s.notificationService.CreateOrderNotification(o.ID, customerID, "created", metadata)
+		s.NotificationService.CreateOrderNotification(o.ID, customerID, "created", metadata)
 	}
 
 	return &OrderResult{
@@ -241,14 +230,14 @@ func (s *OrderService) CreateOrder(
 		OrderID:   o.ID,
 		Status:    o.OrderStatus,
 		Total:     totalAmount,
-		CreatedBy: o.CreatedBy,
+		CreatedBy: createdByID,
 	}, nil
 }
 
 // UpdateOrderStatus updates the status of an order
 func (s *OrderService) UpdateOrderStatus(id uuid.UUID, status order.OrderStatus) (*OrderResult, error) {
 	// Get the order
-	o, err := s.orderRepo.GetOrderByID(id)
+	o, err := s.OrderRepo.GetOrderByID(id)
 	if err != nil {
 		return &OrderResult{
 			Success: false,
@@ -267,7 +256,7 @@ func (s *OrderService) UpdateOrderStatus(id uuid.UUID, status order.OrderStatus)
 	}
 
 	// Start transaction
-	tx := s.db.Begin()
+	tx := s.DB.Begin()
 	if tx.Error != nil {
 		return &OrderResult{
 			Success: false,
@@ -308,7 +297,7 @@ func (s *OrderService) UpdateOrderStatus(id uuid.UUID, status order.OrderStatus)
 	}
 
 	// Send notification
-	if s.notificationService != nil {
+	if s.NotificationService != nil {
 		metadata := map[string]interface{}{
 			"order_id":      o.ID.String(),
 			"customer_id":   o.CustomerID.String(),
@@ -331,7 +320,7 @@ func (s *OrderService) UpdateOrderStatus(id uuid.UUID, status order.OrderStatus)
 			event = "updated"
 		}
 
-		s.notificationService.CreateOrderNotification(o.ID, o.CustomerID, event, metadata)
+		s.NotificationService.CreateOrderNotification(o.ID, o.CustomerID, event, metadata)
 	}
 
 	return &OrderResult{
@@ -344,107 +333,32 @@ func (s *OrderService) UpdateOrderStatus(id uuid.UUID, status order.OrderStatus)
 	}, nil
 }
 
-// handleInventoryForStatusChange handles inventory updates based on order status changes
+// handleInventoryForStatusChange handles inventory changes based on order status changes
 func (s *OrderService) handleInventoryForStatusChange(tx *gorm.DB, o *order.Order, oldStatus, newStatus order.OrderStatus) error {
 	// Get order items
-	var items []order.OrderItem
-	if err := tx.Where("order_id = ?", o.ID).Find(&items).Error; err != nil {
+	items, err := s.OrderRepo.GetOrderItemsByOrderID(o.ID)
+	if err != nil {
 		return err
 	}
 
-	// Handle inventory updates based on status change
-	// Packing => Deduct from inventory
-	if (oldStatus != order.OrderPacking && newStatus == order.OrderPacking) ||
-		(oldStatus != order.OrderShipped && newStatus == order.OrderShipped) {
+	// Handle inventory changes based on status transition
+	if oldStatus == order.OrderPendingConfirmation && newStatus == order.OrderConfirmed {
+		// When order is confirmed, reserve inventory
 		for _, item := range items {
-			// Deduct from inventory
-			inventory := &product.Inventory{}
-			if err := tx.Where("id = ?", item.InventoryID).First(inventory).Error; err != nil {
-				return err
-			}
-
-			// Update inventory quantity
-			inventory.Quantity -= item.Quantity
-			if err := tx.Save(inventory).Error; err != nil {
-				return err
-			}
-
-			// Create inventory transaction
-			transaction := &product.InventoryTransaction{
-				InventoryID:   item.InventoryID,
-				Quantity:      -item.Quantity,
-				Type:          product.TransactionOutbound,
-				Reason:        product.ReasonSale,
-				ReferenceID:   &o.ID,
-				ReferenceType: "order",
-				Notes:         fmt.Sprintf("Order status changed to %s", newStatus),
-			}
-			if err := tx.Create(transaction).Error; err != nil {
+			if err := s.ProductService.ReserveInventory(item.InventoryID, item.Quantity); err != nil {
 				return err
 			}
 		}
-	}
-
-	// Returned => Add back to inventory
-	if oldStatus != order.OrderReturned && newStatus == order.OrderReturned {
+	} else if oldStatus == order.OrderConfirmed && newStatus == order.OrderCanceled {
+		// When order is cancelled after confirmation, release inventory
 		for _, item := range items {
-			// Add back to inventory
-			inventory := &product.Inventory{}
-			if err := tx.Where("id = ?", item.InventoryID).First(inventory).Error; err != nil {
-				return err
-			}
-
-			// Update inventory quantity
-			inventory.Quantity += item.Quantity
-			if err := tx.Save(inventory).Error; err != nil {
-				return err
-			}
-
-			// Create inventory transaction
-			transaction := &product.InventoryTransaction{
-				InventoryID:   item.InventoryID,
-				Quantity:      item.Quantity,
-				Type:          product.TransactionInbound,
-				Reason:        product.ReasonReturn,
-				ReferenceID:   &o.ID,
-				ReferenceType: "order",
-				Notes:         "Order returned",
-			}
-			if err := tx.Create(transaction).Error; err != nil {
+			if err := s.ProductService.ReleaseInventory(item.InventoryID, item.Quantity); err != nil {
 				return err
 			}
 		}
-	}
-
-	// Canceled => Add back to inventory if previously deducted
-	if (oldStatus == order.OrderPacking || oldStatus == order.OrderShipped) && newStatus == order.OrderCanceled {
-		for _, item := range items {
-			// Add back to inventory
-			inventory := &product.Inventory{}
-			if err := tx.Where("id = ?", item.InventoryID).First(inventory).Error; err != nil {
-				return err
-			}
-
-			// Update inventory quantity
-			inventory.Quantity += item.Quantity
-			if err := tx.Save(inventory).Error; err != nil {
-				return err
-			}
-
-			// Create inventory transaction
-			transaction := &product.InventoryTransaction{
-				InventoryID:   item.InventoryID,
-				Quantity:      item.Quantity,
-				Type:          product.TransactionInbound,
-				Reason:        product.ReasonOrderCancellation,
-				ReferenceID:   &o.ID,
-				ReferenceType: "order",
-				Notes:         "Order canceled",
-			}
-			if err := tx.Create(transaction).Error; err != nil {
-				return err
-			}
-		}
+	} else if oldStatus == order.OrderPendingConfirmation && newStatus == order.OrderCanceled {
+		// When order is cancelled before confirmation, no inventory change needed
+		return nil
 	}
 
 	return nil
@@ -501,7 +415,7 @@ func isValidStatusTransition(oldStatus, newStatus order.OrderStatus) bool {
 // UpdatePaymentStatus updates the payment status of an order
 func (s *OrderService) UpdatePaymentStatus(id uuid.UUID, status string, paidAmount *float64) (*OrderResult, error) {
 	// Get the order
-	o, err := s.orderRepo.GetOrderByID(id)
+	o, err := s.OrderRepo.GetOrderByID(id)
 	if err != nil {
 		return &OrderResult{
 			Success: false,
@@ -511,7 +425,7 @@ func (s *OrderService) UpdatePaymentStatus(id uuid.UUID, status string, paidAmou
 	}
 
 	// Start transaction
-	tx := s.db.Begin()
+	tx := s.DB.Begin()
 	if tx.Error != nil {
 		return &OrderResult{
 			Success: false,
@@ -552,7 +466,7 @@ func (s *OrderService) UpdatePaymentStatus(id uuid.UUID, status string, paidAmou
 	}
 
 	// Send notification
-	if s.notificationService != nil {
+	if s.NotificationService != nil {
 		metadata := map[string]interface{}{
 			"order_id":       o.ID.String(),
 			"customer_id":    o.CustomerID.String(),
@@ -563,7 +477,7 @@ func (s *OrderService) UpdatePaymentStatus(id uuid.UUID, status string, paidAmou
 			metadata["paid_amount"] = *paidAmount
 		}
 
-		s.notificationService.CreateOrderNotification(o.ID, o.CustomerID, "payment_updated", metadata)
+		s.NotificationService.CreateOrderNotification(o.ID, o.CustomerID, "payment_updated", metadata)
 	}
 
 	return &OrderResult{
@@ -579,7 +493,7 @@ func (s *OrderService) UpdatePaymentStatus(id uuid.UUID, status string, paidAmou
 // DeleteOrder deletes an order by ID
 func (s *OrderService) DeleteOrder(id uuid.UUID) (*OrderResult, error) {
 	// Get the order
-	o, err := s.orderRepo.GetOrderByID(id)
+	o, err := s.OrderRepo.GetOrderByID(id)
 	if err != nil {
 		return &OrderResult{
 			Success: false,
@@ -598,7 +512,7 @@ func (s *OrderService) DeleteOrder(id uuid.UUID) (*OrderResult, error) {
 	}
 
 	// Start transaction
-	tx := s.db.Begin()
+	tx := s.DB.Begin()
 	if tx.Error != nil {
 		return &OrderResult{
 			Success: false,
@@ -659,7 +573,7 @@ func (s *OrderService) DeleteOrder(id uuid.UUID) (*OrderResult, error) {
 // CreateShipment creates a shipment for an order
 func (s *OrderService) CreateShipment(orderID uuid.UUID, trackingNumber, carrier string) error {
 	// Get the order
-	o, err := s.orderRepo.GetOrderByID(orderID)
+	o, err := s.OrderRepo.GetOrderByID(orderID)
 	if err != nil {
 		return err
 	}
@@ -670,7 +584,7 @@ func (s *OrderService) CreateShipment(orderID uuid.UUID, trackingNumber, carrier
 	}
 
 	// Check if shipment already exists
-	existingShipment, err := s.orderRepo.GetShipmentByOrderID(orderID)
+	existingShipment, err := s.OrderRepo.GetShipmentByOrderID(orderID)
 	if err == nil && existingShipment != nil && existingShipment.ID != uuid.Nil {
 		return fmt.Errorf("shipment already exists for this order")
 	}
@@ -683,7 +597,7 @@ func (s *OrderService) CreateShipment(orderID uuid.UUID, trackingNumber, carrier
 	}
 
 	// Start transaction
-	tx := s.db.Begin()
+	tx := s.DB.Begin()
 	if tx.Error != nil {
 		return tx.Error
 	}
@@ -708,7 +622,7 @@ func (s *OrderService) CreateShipment(orderID uuid.UUID, trackingNumber, carrier
 	}
 
 	// Send notification
-	if s.notificationService != nil {
+	if s.NotificationService != nil {
 		metadata := map[string]interface{}{
 			"order_id":        o.ID.String(),
 			"customer_id":     o.CustomerID.String(),
@@ -717,7 +631,7 @@ func (s *OrderService) CreateShipment(orderID uuid.UUID, trackingNumber, carrier
 			"carrier":         carrier,
 		}
 
-		s.notificationService.CreateOrderNotification(o.ID, o.CustomerID, "shipment_created", metadata)
+		s.NotificationService.CreateOrderNotification(o.ID, o.CustomerID, "shipment_created", metadata)
 	}
 
 	return nil
@@ -726,7 +640,7 @@ func (s *OrderService) CreateShipment(orderID uuid.UUID, trackingNumber, carrier
 // UpdateShipment updates a shipment
 func (s *OrderService) UpdateShipment(orderID uuid.UUID, trackingNumber, carrier string) error {
 	// Get the shipment
-	shipment, err := s.orderRepo.GetShipmentByOrderID(orderID)
+	shipment, err := s.OrderRepo.GetShipmentByOrderID(orderID)
 	if err != nil {
 		return err
 	}
@@ -740,14 +654,14 @@ func (s *OrderService) UpdateShipment(orderID uuid.UUID, trackingNumber, carrier
 	}
 
 	// Save shipment
-	if err := s.orderRepo.UpdateShipment(shipment); err != nil {
+	if err := s.OrderRepo.UpdateShipment(shipment); err != nil {
 		return err
 	}
 
 	// Send notification
-	if s.notificationService != nil {
+	if s.NotificationService != nil {
 		// Get the order
-		o, err := s.orderRepo.GetOrderByID(orderID)
+		o, err := s.OrderRepo.GetOrderByID(orderID)
 		if err == nil {
 			metadata := map[string]interface{}{
 				"order_id":        o.ID.String(),
@@ -757,7 +671,7 @@ func (s *OrderService) UpdateShipment(orderID uuid.UUID, trackingNumber, carrier
 				"carrier":         shipment.Carrier,
 			}
 
-			s.notificationService.CreateOrderNotification(o.ID, o.CustomerID, "shipment_updated", metadata)
+			s.NotificationService.CreateOrderNotification(o.ID, o.CustomerID, "shipment_updated", metadata)
 		}
 	}
 
@@ -767,19 +681,19 @@ func (s *OrderService) UpdateShipment(orderID uuid.UUID, trackingNumber, carrier
 // DeleteShipment deletes a shipment
 func (s *OrderService) DeleteShipment(orderID uuid.UUID) error {
 	// Get the shipment
-	shipment, err := s.orderRepo.GetShipmentByOrderID(orderID)
+	shipment, err := s.OrderRepo.GetShipmentByOrderID(orderID)
 	if err != nil {
 		return err
 	}
 
 	// Delete shipment
-	return s.orderRepo.DeleteShipment(shipment.ID)
+	return s.OrderRepo.DeleteShipment(shipment.ID)
 }
 
 // AddOrderItem adds an item to an order
 func (s *OrderService) AddOrderItem(orderID uuid.UUID, inventoryID uuid.UUID, quantity int) error {
 	// Get the order
-	o, err := s.orderRepo.GetOrderByID(orderID)
+	o, err := s.OrderRepo.GetOrderByID(orderID)
 	if err != nil {
 		return err
 	}
@@ -789,25 +703,30 @@ func (s *OrderService) AddOrderItem(orderID uuid.UUID, inventoryID uuid.UUID, qu
 		return fmt.Errorf("order status does not allow adding items")
 	}
 
-	// Get inventory
-	inventory, err := s.productRepo.GetInventoryByID(inventoryID)
+	// Check inventory availability
+	available, err := s.ProductService.CheckInventoryAvailability(inventoryID, quantity)
 	if err != nil {
 		return err
 	}
 
-	// Check if inventory has enough quantity
-	if inventory.Quantity < quantity {
+	if !available {
 		return fmt.Errorf("not enough inventory")
 	}
 
+	// Get inventory for product ID
+	inventory, err := s.ProductService.GetInventoryByID(inventoryID)
+	if err != nil {
+		return err
+	}
+
 	// Get current price
-	price, err := s.productRepo.GetCurrentPrice(inventory.ProductID)
+	price, err := s.ProductService.GetCurrentPrice(inventory.ProductID)
 	if err != nil {
 		return err
 	}
 
 	// Start transaction
-	tx := s.db.Begin()
+	tx := s.DB.Begin()
 	if tx.Error != nil {
 		return tx.Error
 	}
@@ -839,13 +758,13 @@ func (s *OrderService) AddOrderItem(orderID uuid.UUID, inventoryID uuid.UUID, qu
 // UpdateOrderItem updates an order item
 func (s *OrderService) UpdateOrderItem(id uuid.UUID, quantity int) error {
 	// Get the order item
-	item, err := s.orderRepo.GetOrderItemByID(id)
+	item, err := s.OrderRepo.GetOrderItemByID(id)
 	if err != nil {
 		return err
 	}
 
 	// Get the order
-	o, err := s.orderRepo.GetOrderByID(item.OrderID)
+	o, err := s.OrderRepo.GetOrderByID(item.OrderID)
 	if err != nil {
 		return err
 	}
@@ -855,19 +774,20 @@ func (s *OrderService) UpdateOrderItem(id uuid.UUID, quantity int) error {
 		return fmt.Errorf("order status does not allow updating items")
 	}
 
-	// Get inventory
-	inventory, err := s.productRepo.GetInventoryByID(item.InventoryID)
-	if err != nil {
-		return err
-	}
+	// If quantity is increasing, check inventory availability
+	if quantity > item.Quantity {
+		available, err := s.ProductService.CheckInventoryAvailability(item.InventoryID, quantity-item.Quantity)
+		if err != nil {
+			return err
+		}
 
-	// Check if inventory has enough quantity for the increase
-	if quantity > item.Quantity && inventory.Quantity < (quantity-item.Quantity) {
-		return fmt.Errorf("not enough inventory")
+		if !available {
+			return fmt.Errorf("not enough inventory")
+		}
 	}
 
 	// Start transaction
-	tx := s.db.Begin()
+	tx := s.DB.Begin()
 	if tx.Error != nil {
 		return tx.Error
 	}
@@ -896,13 +816,13 @@ func (s *OrderService) UpdateOrderItem(id uuid.UUID, quantity int) error {
 // DeleteOrderItem deletes an order item
 func (s *OrderService) DeleteOrderItem(id uuid.UUID) error {
 	// Get the order item
-	item, err := s.orderRepo.GetOrderItemByID(id)
+	item, err := s.OrderRepo.GetOrderItemByID(id)
 	if err != nil {
 		return err
 	}
 
 	// Get the order
-	o, err := s.orderRepo.GetOrderByID(item.OrderID)
+	o, err := s.OrderRepo.GetOrderByID(item.OrderID)
 	if err != nil {
 		return err
 	}
@@ -913,7 +833,7 @@ func (s *OrderService) DeleteOrderItem(id uuid.UUID) error {
 	}
 
 	// Start transaction
-	tx := s.db.Begin()
+	tx := s.DB.Begin()
 	if tx.Error != nil {
 		return tx.Error
 	}

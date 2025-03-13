@@ -15,11 +15,7 @@ type AuthHandler struct {
 }
 
 // NewAuthHandler creates a new instance of AuthHandler
-func NewAuthHandler(db *gorm.DB, jwtService *jwt.JWTService) *AuthHandler {
-	// Create UserService first since AuthService depends on it
-	notificationService := services.NewNotificationService(db, nil)
-	userService := services.NewUserService(db, notificationService)
-
+func NewAuthHandler(db *gorm.DB, jwtService *jwt.JWTService, userService *services.UserService) *AuthHandler {
 	return &AuthHandler{
 		authService: services.NewAuthService(db, jwtService, userService),
 	}

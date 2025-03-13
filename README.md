@@ -22,24 +22,38 @@ This repository contains the backend API for the YBDS application, which serves 
 
 ```
 ├── cmd/
-│   └── app/
+│   └── server/
 │       └── main.go           # Application entry point
 ├── internal/
 │   ├── api/
 │   │   ├── handlers/         # HTTP request handlers
 │   │   ├── requests/         # Request models and validation
 │   │   └── responses/        # Response models
-│   ├── config/               # Application configuration
-│   ├── database/             # Database connection and migrations
-│   ├── middleware/           # HTTP middleware
-│   ├── models/               # Data models
+│   ├── database/             # Database connection and migration
+│   ├── models/               # Domain models
 │   ├── repositories/         # Data access layer
 │   ├── services/             # Business logic
-│   └── testutil/             # Testing utilities
+│   └── utils/                # Utility functions
 ├── pkg/
+│   ├── config/               # Configuration management
+│   ├── database/             # Database utilities
+│   ├── jwt/                  # JWT authentication
+│   ├── logger/               # Logging utilities
 │   ├── upload/               # File upload utilities
-│   └── websocket/            # WebSocket implementation
-└── tests/                    # End-to-end tests
+│   └── websocket/            # WebSocket utilities
+├── docs/                     # Documentation
+│   ├── swagger.json          # Swagger API documentation
+│   ├── swagger.yaml          # Swagger API documentation
+│   ├── docs.go               # Swagger generated code
+│   ├── project_documentation.md # Project architecture and test plan
+│   └── database_and_business_rule_for_application.md # Database and business rules
+├── migrations/               # Database migrations
+├── tests/                    # End-to-end tests
+│   └── e2e/                  # End-to-end test files
+├── scripts/                  # Utility scripts
+├── .env                      # Environment variables
+├── docker-compose.yml        # Docker Compose configuration
+└── Dockerfile                # Docker configuration
 ```
 
 ## Getting Started
@@ -71,7 +85,7 @@ This repository contains the backend API for the YBDS application, which serves 
 
 4. Run the application:
    ```bash
-   go run cmd/app/main.go
+   go run cmd/server/main.go
    ```
 
 ## Running Tests
@@ -117,7 +131,7 @@ End-to-end tests simulate client interactions with the API.
 
 ```bash
 # Run the API in test mode
-go run cmd/app/main.go --env=test
+go run cmd/server/main.go --env=test
 
 # In another terminal, run the E2E tests
 go test ./tests/e2e/...

@@ -19,9 +19,9 @@ type OrderHandler struct {
 }
 
 // NewOrderHandler creates a new instance of OrderHandler
-func NewOrderHandler(db *gorm.DB, userService *services.UserService, notificationService *services.NotificationService) *OrderHandler {
+func NewOrderHandler(db *gorm.DB, productService *services.ProductService, userService *services.UserService, notificationService *services.NotificationService) *OrderHandler {
 	return &OrderHandler{
-		orderService: services.NewOrderService(db, userService, notificationService),
+		orderService: services.NewOrderService(db, productService, userService, notificationService),
 	}
 }
 
@@ -131,14 +131,17 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 
 // GetOrders godoc
 // @Summary Get all orders
-// @Description Get a list of all orders with pagination and filtering
+// @Description Get a list of all orders with pagination, filtering and search
 // @Tags orders
 // @Accept json
 // @Produce json
 // @Param page query int false "Page number"
 // @Param page_size query int false "Page size"
 // @Param status query string false "Filter by status"
-// @Param customer_id query string false "Filter by customer ID"
+// @Param payment_status query string false "Filter by payment status"
+// @Param start_date query string false "Filter by start date (YYYY-MM-DD)"
+// @Param end_date query string false "Filter by end date (YYYY-MM-DD)"
+// @Param search query string false "Search term"
 // @Success 200 {object} responses.OrdersResponse
 // @Failure 500 {object} responses.ErrorResponse
 // @Router /orders [get]

@@ -14,17 +14,17 @@ import (
 
 // NotificationService handles notification-related business logic
 type NotificationService struct {
-	db               *gorm.DB
-	notificationRepo *repositories.NotificationRepository
-	websocketHub     *websocket.Hub
+	DB               *gorm.DB
+	NotificationRepo *repositories.NotificationRepository
+	WebsocketHub     *websocket.Hub
 }
 
 // NewNotificationService creates a new instance of NotificationService
 func NewNotificationService(db *gorm.DB, websocketHub *websocket.Hub) *NotificationService {
 	return &NotificationService{
-		db:               db,
-		notificationRepo: repositories.NewNotificationRepository(db),
-		websocketHub:     websocketHub,
+		DB:               db,
+		NotificationRepo: repositories.NewNotificationRepository(db),
+		WebsocketHub:     websocketHub,
 	}
 }
 
@@ -46,7 +46,7 @@ func (s *NotificationService) CreateNotification(
 	channels []notification.ChannelType,
 ) (*NotificationResult, error) {
 	// Start a transaction
-	tx := s.db.Begin()
+	tx := s.DB.Begin()
 	if tx.Error != nil {
 		return &NotificationResult{
 			Success: false,
@@ -123,7 +123,7 @@ func (s *NotificationService) CreateNotification(
 // sendWebsocketNotification sends a notification through websocket
 func (s *NotificationService) sendWebsocketNotification(notif notification.Notification) {
 	// Skip if websocketHub is nil
-	if s.websocketHub == nil {
+	if s.WebsocketHub == nil {
 		return
 	}
 
@@ -153,42 +153,42 @@ func (s *NotificationService) sendWebsocketNotification(notif notification.Notif
 
 	// Broadcast to the user if it's a user notification
 	if notif.RecipientType == notification.RecipientUser && notif.RecipientID != nil {
-		s.websocketHub.BroadcastToUser(notif.RecipientID.String(), jsonMessage)
+		s.WebsocketHub.BroadcastToUser(notif.RecipientID.String(), jsonMessage)
 	} else if notif.RecipientID != nil {
 		// Use BroadcastToAll for now as a workaround
 		// TODO: Implement proper topic-based broadcasting
-		s.websocketHub.BroadcastToAll(jsonMessage)
+		s.WebsocketHub.BroadcastToAll(jsonMessage)
 	}
 
 	// Update the channel status
 	go func() {
 		var channel notification.Channel
-		if err := s.db.Where("notification_id = ? AND channel = ?", notif.ID, notification.ChannelWebsocket).First(&channel).Error; err == nil {
+		if err := s.DB.Where("notification_id = ? AND channel = ?", notif.ID, notification.ChannelWebsocket).First(&channel).Error; err == nil {
 			channel.Status = notification.ChannelSent
 			channel.Response = notification.Response{"sent_at": time.Now()}
-			s.db.Save(&channel)
+			s.DB.Save(&channel)
 		}
 	}()
 }
 
 // GetNotificationsByRecipient retrieves all notifications for a recipient
 func (s *NotificationService) GetNotificationsByRecipient(recipientID uuid.UUID, recipientType notification.RecipientType) ([]notification.Notification, error) {
-	return s.notificationRepo.GetNotificationsByRecipient(recipientID, recipientType)
+	return s.NotificationRepo.GetNotificationsByRecipient(recipientID, recipientType)
 }
 
 // GetUnreadNotificationsByRecipient retrieves all unread notifications for a recipient
 func (s *NotificationService) GetUnreadNotificationsByRecipient(recipientID uuid.UUID, recipientType notification.RecipientType) ([]notification.Notification, error) {
-	return s.notificationRepo.GetUnreadNotificationsByRecipient(recipientID, recipientType)
+	return s.NotificationRepo.GetUnreadNotificationsByRecipient(recipientID, recipientType)
 }
 
 // MarkNotificationAsRead marks a notification as read
 func (s *NotificationService) MarkNotificationAsRead(id uuid.UUID) error {
-	return s.notificationRepo.MarkNotificationAsRead(id)
+	return s.NotificationRepo.MarkNotificationAsRead(id)
 }
 
 // MarkAllNotificationsAsRead marks all notifications for a recipient as read
 func (s *NotificationService) MarkAllNotificationsAsRead(recipientID uuid.UUID, recipientType notification.RecipientType) error {
-	return s.notificationRepo.MarkAllNotificationsAsRead(recipientID, recipientType)
+	return s.NotificationRepo.MarkAllNotificationsAsRead(recipientID, recipientType)
 }
 
 // CreateProductNotification creates a notification for a product event

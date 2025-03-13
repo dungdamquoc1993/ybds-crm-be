@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
@@ -194,4 +195,24 @@ func (m *MockTransaction) Rollback() *gorm.DB {
 func (m *MockTransaction) Error() error {
 	args := m.Called()
 	return args.Error(0)
+}
+
+// SetPrivateField sets a private field in a struct using reflection
+func SetPrivateField(obj interface{}, fieldName string, value interface{}) {
+	// Get the reflect.Value of the object
+	objValue := reflect.ValueOf(obj)
+
+	// If it's a pointer, get the element it points to
+	if objValue.Kind() == reflect.Ptr {
+		objValue = objValue.Elem()
+	}
+
+	// Get the field by name
+	field := objValue.FieldByName(fieldName)
+
+	// Check if the field exists and can be set
+	if field.IsValid() && field.CanSet() {
+		// Set the field value
+		field.Set(reflect.ValueOf(value))
+	}
 }

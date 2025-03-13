@@ -13,7 +13,14 @@ func NewHealthHandler() *HealthHandler {
 	return &HealthHandler{}
 }
 
-// HandleHealthCheck handles the health check endpoint
+// HandleHealthCheck godoc
+// @Summary Health check endpoint
+// @Description Check if the service is up and running
+// @Tags health
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]string
+// @Router /health [get]
 func (h *HealthHandler) HandleHealthCheck(c *fiber.Ctx) error {
 	return utils.SuccessResponse(c, fiber.StatusOK, "Service is healthy", map[string]string{
 		"status":  "up",

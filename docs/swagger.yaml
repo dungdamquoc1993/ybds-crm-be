@@ -1,11 +1,114 @@
-basePath: /api
 definitions:
+  requests.AddOrderItemRequest:
+    properties:
+      inventory_id:
+        type: string
+      notes:
+        type: string
+      price_id:
+        type: string
+      product_id:
+        type: string
+      quantity:
+        type: integer
+    type: object
+  requests.CreateInventoryRequest:
+    properties:
+      color:
+        type: string
+      location:
+        type: string
+      quantity:
+        type: integer
+      size:
+        type: string
+    type: object
+  requests.CreateOrderRequest:
+    properties:
+      customer_id:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/requests.OrderItemInfo'
+        type: array
+      notes:
+        type: string
+      payment_method:
+        type: string
+      shipping_address_id:
+        type: string
+      status:
+        type: string
+    type: object
+  requests.CreatePriceRequest:
+    properties:
+      currency:
+        type: string
+      end_date:
+        type: string
+      price:
+        type: number
+    type: object
+  requests.CreateProductRequest:
+    properties:
+      category:
+        type: string
+      description:
+        type: string
+      image_url:
+        type: string
+      inventories:
+        items:
+          $ref: '#/definitions/requests.InventoryRequest'
+        type: array
+      name:
+        type: string
+      prices:
+        items:
+          $ref: '#/definitions/requests.PriceRequest'
+        type: array
+      sku:
+        type: string
+    type: object
+  requests.InventoryRequest:
+    properties:
+      color:
+        type: string
+      location:
+        type: string
+      quantity:
+        type: integer
+      size:
+        type: string
+    type: object
   requests.LoginRequest:
     properties:
       password:
         type: string
       username:
         type: string
+    type: object
+  requests.OrderItemInfo:
+    properties:
+      inventory_id:
+        type: string
+      notes:
+        type: string
+      price_id:
+        type: string
+      product_id:
+        type: string
+      quantity:
+        type: integer
+    type: object
+  requests.PriceRequest:
+    properties:
+      currency:
+        type: string
+      end_date:
+        type: string
+      price:
+        type: number
     type: object
   requests.RegisterRequest:
     properties:
@@ -16,6 +119,83 @@ definitions:
       phone:
         type: string
     type: object
+  requests.UpdateInventoryRequest:
+    properties:
+      color:
+        type: string
+      location:
+        type: string
+      quantity:
+        type: integer
+      size:
+        type: string
+    type: object
+  requests.UpdateOrderItemRequest:
+    properties:
+      notes:
+        type: string
+      quantity:
+        type: integer
+    type: object
+  requests.UpdateOrderStatusRequest:
+    properties:
+      status:
+        type: string
+    type: object
+  requests.UpdatePaymentStatusRequest:
+    properties:
+      payment_reference:
+        type: string
+      payment_status:
+        type: string
+    type: object
+  requests.UpdatePriceRequest:
+    properties:
+      currency:
+        type: string
+      end_date:
+        type: string
+      price:
+        type: number
+    type: object
+  requests.UpdateProductRequest:
+    properties:
+      category:
+        type: string
+      description:
+        type: string
+      image_url:
+        type: string
+      name:
+        type: string
+      sku:
+        type: string
+    type: object
+  responses.AddressResponse:
+    properties:
+      address:
+        type: string
+      city:
+        type: string
+      country:
+        type: string
+      created_at:
+        type: string
+      district:
+        type: string
+      guest_id:
+        type: string
+      id:
+        type: string
+      is_default:
+        type: boolean
+      updated_at:
+        type: string
+      user_id:
+        type: string
+      ward:
+        type: string
+    type: object
   responses.ErrorResponse:
     properties:
       error:
@@ -24,6 +204,44 @@ definitions:
         type: string
       success:
         type: boolean
+    type: object
+  responses.GuestDetailResponse:
+    properties:
+      addresses:
+        items:
+          $ref: '#/definitions/responses.AddressResponse'
+        type: array
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      phone:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  responses.InventoryResponse:
+    properties:
+      color:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      location:
+        type: string
+      product_id:
+        type: string
+      quantity:
+        type: integer
+      size:
+        type: string
+      updated_at:
+        type: string
     type: object
   responses.LoginResponse:
     properties:
@@ -36,6 +254,231 @@ definitions:
       user:
         $ref: '#/definitions/responses.UserResponse'
     type: object
+  responses.NotificationResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      is_read:
+        type: boolean
+      message:
+        type: string
+      redirect_url:
+        type: string
+      title:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    type: object
+  responses.NotificationsResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/responses.NotificationResponse'
+        type: array
+      message:
+        type: string
+      page:
+        type: integer
+      page_size:
+        type: integer
+      success:
+        type: boolean
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  responses.OrderDetail:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      created_by_name:
+        type: string
+      customer_email:
+        type: string
+      customer_id:
+        type: string
+      customer_name:
+        type: string
+      customer_phone:
+        type: string
+      id:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/responses.OrderItemResponse'
+        type: array
+      notes:
+        type: string
+      payment_method:
+        type: string
+      payment_reference:
+        type: string
+      payment_status:
+        type: string
+      shipping_address:
+        type: string
+      shipping_address_id:
+        type: string
+      status:
+        type: string
+      total:
+        type: number
+      updated_at:
+        type: string
+    type: object
+  responses.OrderDetailResponse:
+    properties:
+      data:
+        $ref: '#/definitions/responses.OrderDetail'
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  responses.OrderItemDetailResponse:
+    properties:
+      data:
+        $ref: '#/definitions/responses.OrderItemResponse'
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  responses.OrderItemResponse:
+    properties:
+      color:
+        type: string
+      created_at:
+        type: string
+      currency:
+        type: string
+      id:
+        type: string
+      inventory_id:
+        type: string
+      notes:
+        type: string
+      order_id:
+        type: string
+      price:
+        type: number
+      price_id:
+        type: string
+      product_id:
+        type: string
+      product_name:
+        type: string
+      quantity:
+        type: integer
+      size:
+        type: string
+      subtotal:
+        type: number
+      updated_at:
+        type: string
+    type: object
+  responses.OrderResponse:
+    properties:
+      data:
+        $ref: '#/definitions/responses.OrderDetail'
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  responses.OrdersResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/responses.OrderDetail'
+        type: array
+      message:
+        type: string
+      page:
+        type: integer
+      page_size:
+        type: integer
+      success:
+        type: boolean
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  responses.PriceResponse:
+    properties:
+      created_at:
+        type: string
+      currency:
+        type: string
+      end_date:
+        type: string
+      id:
+        type: string
+      price:
+        type: number
+      product_id:
+        type: string
+      start_date:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  responses.ProductDetailResponse:
+    properties:
+      category:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      image_url:
+        type: string
+      inventories:
+        items:
+          $ref: '#/definitions/responses.InventoryResponse'
+        type: array
+      name:
+        type: string
+      prices:
+        items:
+          $ref: '#/definitions/responses.PriceResponse'
+        type: array
+      sku:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  responses.ProductsResponse:
+    properties:
+      message:
+        type: string
+      page:
+        type: integer
+      page_size:
+        type: integer
+      products:
+        items:
+          $ref: '#/definitions/responses.ProductDetailResponse'
+        type: array
+      success:
+        type: boolean
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
   responses.RegisterResponse:
     properties:
       email:
@@ -45,6 +488,42 @@ definitions:
       success:
         type: boolean
       user_id:
+        type: string
+      username:
+        type: string
+    type: object
+  responses.SuccessResponse:
+    properties:
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  responses.UserDetailResponse:
+    properties:
+      addresses:
+        items:
+          $ref: '#/definitions/responses.AddressResponse'
+        type: array
+      created_at:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      last_name:
+        type: string
+      phone:
+        type: string
+      roles:
+        items:
+          type: string
+        type: array
+      updated_at:
         type: string
       username:
         type: string
@@ -62,18 +541,27 @@ definitions:
       username:
         type: string
     type: object
-host: localhost:3000
+  responses.UsersResponse:
+    properties:
+      message:
+        type: string
+      page:
+        type: integer
+      page_size:
+        type: integer
+      success:
+        type: boolean
+      total:
+        type: integer
+      total_pages:
+        type: integer
+      users:
+        items:
+          $ref: '#/definitions/responses.UserDetailResponse'
+        type: array
+    type: object
 info:
-  contact:
-    email: your-email@domain.com
-    name: API Support
-  description: API Server for YBDS Application
-  license:
-    name: Apache 2.0
-    url: http://www.apache.org/licenses/LICENSE-2.0.html
-  termsOfService: http://swagger.io/terms/
-  title: YBDS API
-  version: "1.0"
+  contact: {}
 paths:
   /auth/login:
     post:
@@ -139,7 +627,1031 @@ paths:
       summary: Register a new user
       tags:
       - auth
-schemes:
-- http
-- https
+  /guests/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get a guest with their addresses
+      parameters:
+      - description: Guest ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.GuestDetailResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get a guest with all relationships
+      tags:
+      - guests
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Check if the service is up and running
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Health check endpoint
+      tags:
+      - health
+  /notifications:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all notifications for the current user with pagination
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      - description: Get only unread notifications
+        in: query
+        name: unread_only
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.NotificationsResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get all notifications for the current user
+      tags:
+      - notifications
+  /notifications/{id}/read:
+    put:
+      consumes:
+      - application/json
+      description: Mark a specific notification as read
+      parameters:
+      - description: Notification ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Mark a notification as read
+      tags:
+      - notifications
+  /notifications/read-all:
+    put:
+      consumes:
+      - application/json
+      description: Mark all notifications for the current user as read
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Mark all notifications as read
+      tags:
+      - notifications
+  /notifications/unread:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of unread notifications for the current user
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.NotificationsResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get unread notifications for the current user
+      tags:
+      - notifications
+  /orders:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all orders with pagination, filtering and search
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      - description: Filter by status
+        in: query
+        name: status
+        type: string
+      - description: Filter by payment status
+        in: query
+        name: payment_status
+        type: string
+      - description: Filter by start date (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: Filter by end date (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      - description: Search term
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.OrdersResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get all orders
+      tags:
+      - orders
+    post:
+      consumes:
+      - application/json
+      description: Create a new order with items
+      parameters:
+      - description: Order details
+        in: body
+        name: order
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CreateOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/responses.OrderResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Create a new order
+      tags:
+      - orders
+  /orders/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete an order and all its items
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Delete an order
+      tags:
+      - orders
+    get:
+      consumes:
+      - application/json
+      description: Get a specific order with its items
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.OrderDetailResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get an order by ID
+      tags:
+      - orders
+  /orders/{id}/items:
+    post:
+      consumes:
+      - application/json
+      description: Add a new item to an existing order
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Order item details
+        in: body
+        name: item
+        required: true
+        schema:
+          $ref: '#/definitions/requests.AddOrderItemRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/responses.OrderItemDetailResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Add an item to an order
+      tags:
+      - orders
+  /orders/{id}/payment:
+    put:
+      consumes:
+      - application/json
+      description: Update the payment status of an order
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Payment status
+        in: body
+        name: payment
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdatePaymentStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.OrderResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Update an order's payment status
+      tags:
+      - orders
+  /orders/{id}/status:
+    put:
+      consumes:
+      - application/json
+      description: Update the status of an order
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Order status
+        in: body
+        name: status
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateOrderStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.OrderResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Update an order's status
+      tags:
+      - orders
+  /orders/items/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete an existing order item
+      parameters:
+      - description: Order Item ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Delete an order item
+      tags:
+      - orders
+    put:
+      consumes:
+      - application/json
+      description: Update an existing order item
+      parameters:
+      - description: Order Item ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Order item details
+        in: body
+        name: item
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateOrderItemRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.OrderItemDetailResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Update an order item
+      tags:
+      - orders
+  /products:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all products with pagination, filtering and search
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      - description: Search term
+        in: query
+        name: search
+        type: string
+      - description: Filter by category
+        in: query
+        name: category
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.ProductsResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get all products
+      tags:
+      - products
+    post:
+      consumes:
+      - application/json
+      description: Create a new product with optional inventories and prices
+      parameters:
+      - description: Product information
+        in: body
+        name: product
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CreateProductRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.ProductDetailResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Create a new product
+      tags:
+      - products
+  /products/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a product and all associated inventories and prices
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Delete a product
+      tags:
+      - products
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information about a product by its ID
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.ProductDetailResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get a product by ID
+      tags:
+      - products
+    put:
+      consumes:
+      - application/json
+      description: Update a product's information
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated product information
+        in: body
+        name: product
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateProductRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.ProductDetailResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Update a product
+      tags:
+      - products
+  /products/{id}/inventories:
+    post:
+      consumes:
+      - application/json
+      description: Add inventory information for a specific product
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Inventory information
+        in: body
+        name: inventory
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CreateInventoryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.InventoryResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Create a new inventory for a product
+      tags:
+      - products
+  /products/{id}/prices:
+    post:
+      consumes:
+      - application/json
+      description: Add price information for a specific product
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Price information
+        in: body
+        name: price
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CreatePriceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.PriceResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Create a new price for a product
+      tags:
+      - products
+  /products/inventories/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete an inventory record
+      parameters:
+      - description: Inventory ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Delete an inventory
+      tags:
+      - products
+    put:
+      consumes:
+      - application/json
+      description: Update inventory information
+      parameters:
+      - description: Inventory ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated inventory information
+        in: body
+        name: inventory
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateInventoryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.InventoryResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Update an inventory
+      tags:
+      - products
+  /products/prices/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a price record
+      parameters:
+      - description: Price ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Delete a price
+      tags:
+      - products
+    put:
+      consumes:
+      - application/json
+      description: Update price information
+      parameters:
+      - description: Price ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated price information
+        in: body
+        name: price
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdatePriceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.PriceResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Update a price
+      tags:
+      - products
+  /users:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all users with their addresses and roles
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      - description: Search term
+        in: query
+        name: search
+        type: string
+      - description: Filter by role
+        in: query
+        name: role
+        type: string
+      - description: Filter by active status
+        in: query
+        name: is_active
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.UsersResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get all users with their relationships
+      tags:
+      - users
+  /users/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get a specific user with their addresses and roles
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.UserDetailResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get a user by ID with all relationships
+      tags:
+      - users
 swagger: "2.0"

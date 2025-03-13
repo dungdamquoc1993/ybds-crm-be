@@ -36,7 +36,8 @@ tmp/
 temp/
 
 # Uploaded files
-uploads/
+uploads/*
+!uploads/.gitkeep
 
 # Build artifacts
 /bin/

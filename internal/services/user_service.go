@@ -13,17 +13,17 @@ import (
 
 // UserService handles user-related business logic
 type UserService struct {
-	db                  *gorm.DB
-	userRepo            *repositories.UserRepository
-	notificationService *NotificationService
+	DB                  *gorm.DB
+	UserRepo            *repositories.UserRepository
+	NotificationService *NotificationService
 }
 
 // NewUserService creates a new instance of UserService
 func NewUserService(db *gorm.DB, notificationService *NotificationService) *UserService {
 	return &UserService{
-		db:                  db,
-		userRepo:            repositories.NewUserRepository(db),
-		notificationService: notificationService,
+		DB:                  db,
+		UserRepo:            repositories.NewUserRepository(db),
+		NotificationService: notificationService,
 	}
 }
 
@@ -40,13 +40,13 @@ type UserResult struct {
 
 // GetUserByID retrieves a user by ID
 func (s *UserService) GetUserByID(id uuid.UUID) (*account.User, error) {
-	return s.userRepo.GetUserByID(id)
+	return s.UserRepo.GetUserByID(id)
 }
 
 // GetUserByUsernameOrEmail retrieves a user by username or email
 func (s *UserService) GetUserByUsernameOrEmail(usernameOrEmail string) (*account.User, error) {
 	var user account.User
-	if err := s.db.Where("username = ? OR email = ?", usernameOrEmail, usernameOrEmail).
+	if err := s.DB.Where("username = ? OR email = ?", usernameOrEmail, usernameOrEmail).
 		Preload("Roles").First(&user).Error; err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func (s *UserService) GetUserByUsernameOrEmail(usernameOrEmail string) (*account
 
 // GetAllUsers retrieves all users with pagination
 func (s *UserService) GetAllUsers(page, pageSize int) ([]account.User, int64, error) {
-	return s.userRepo.GetAllUsers(page, pageSize)
+	return s.UserRepo.GetAllUsers(page, pageSize)
 }
 
 // CreateUser creates a new user
@@ -79,7 +79,7 @@ func (s *UserService) CreateUser(email, phone, password string) (*UserResult, er
 
 	// Check if user already exists
 	var existingCount int64
-	query := s.db.Model(&account.User{})
+	query := s.DB.Model(&account.User{})
 	if email != "" {
 		query = query.Where("email = ?", email)
 	}
@@ -137,7 +137,7 @@ func (s *UserService) CreateUser(email, phone, password string) (*UserResult, er
 	}
 
 	// Start transaction
-	tx := s.db.Begin()
+	tx := s.DB.Begin()
 	if err := tx.Create(&user).Error; err != nil {
 		tx.Rollback()
 		return &UserResult{
@@ -188,11 +188,11 @@ func (s *UserService) CreateUser(email, phone, password string) (*UserResult, er
 	}
 
 	// Send welcome notification
-	if s.notificationService != nil {
+	if s.NotificationService != nil {
 		metadata := notification.Metadata{
 			"user_id": user.ID.String(),
 		}
-		s.notificationService.CreateNotification(
+		s.NotificationService.CreateNotification(
 			&user.ID,
 			notification.RecipientUser,
 			"Welcome to our platform!",
@@ -214,7 +214,7 @@ func (s *UserService) CreateUser(email, phone, password string) (*UserResult, er
 // UpdateUser updates an existing user
 func (s *UserService) UpdateUser(id uuid.UUID, email, phone, username string, isActive *bool) (*UserResult, error) {
 	// Get the user
-	user, err := s.userRepo.GetUserByID(id)
+	user, err := s.UserRepo.GetUserByID(id)
 	if err != nil {
 		return &UserResult{
 			Success: false,
@@ -238,7 +238,7 @@ func (s *UserService) UpdateUser(id uuid.UUID, email, phone, username string, is
 	}
 
 	// Save the user
-	if err := s.userRepo.UpdateUser(user); err != nil {
+	if err := s.UserRepo.UpdateUser(user); err != nil {
 		return &UserResult{
 			Success: false,
 			Message: "User update failed",
@@ -265,7 +265,7 @@ func (s *UserService) UpdateUser(id uuid.UUID, email, phone, username string, is
 // DeleteUser deletes a user by ID
 func (s *UserService) DeleteUser(id uuid.UUID) (*UserResult, error) {
 	// Get the user
-	user, err := s.userRepo.GetUserByID(id)
+	user, err := s.UserRepo.GetUserByID(id)
 	if err != nil {
 		return &UserResult{
 			Success: false,
@@ -275,7 +275,7 @@ func (s *UserService) DeleteUser(id uuid.UUID) (*UserResult, error) {
 	}
 
 	// Delete the user
-	if err := s.userRepo.DeleteUser(id); err != nil {
+	if err := s.UserRepo.DeleteUser(id); err != nil {
 		return &UserResult{
 			Success: false,
 			Message: "User deletion failed",
@@ -295,28 +295,28 @@ func (s *UserService) DeleteUser(id uuid.UUID) (*UserResult, error) {
 // AddUserAddress adds an address to a user
 func (s *UserService) AddUserAddress(userID uuid.UUID, address *account.Address) error {
 	address.UserID = &userID
-	return s.userRepo.CreateAddress(address)
+	return s.UserRepo.CreateAddress(address)
 }
 
 // UpdateUserAddress updates a user's address
 func (s *UserService) UpdateUserAddress(addressID uuid.UUID, address *account.Address) error {
 	address.ID = addressID
-	return s.userRepo.UpdateAddress(address)
+	return s.UserRepo.UpdateAddress(address)
 }
 
 // DeleteUserAddress deletes a user's address
 func (s *UserService) DeleteUserAddress(addressID uuid.UUID) error {
-	return s.userRepo.DeleteAddress(addressID)
+	return s.UserRepo.DeleteAddress(addressID)
 }
 
 // GetUserAddresses gets all addresses for a user
 func (s *UserService) GetUserAddresses(userID uuid.UUID) ([]account.Address, error) {
-	return s.userRepo.GetUserAddresses(userID)
+	return s.UserRepo.GetUserAddresses(userID)
 }
 
 // GetGuestByID retrieves a guest by ID
 func (s *UserService) GetGuestByID(id uuid.UUID) (*account.Guest, error) {
-	return s.userRepo.GetGuestByID(id)
+	return s.UserRepo.GetGuestByID(id)
 }
 
 // CreateGuest creates a new guest
@@ -326,14 +326,14 @@ func (s *UserService) CreateGuest(name, email, phone string) (*account.Guest, er
 		Email: email,
 		Phone: phone,
 	}
-	err := s.userRepo.CreateGuest(guest)
+	err := s.UserRepo.CreateGuest(guest)
 	return guest, err
 }
 
 // UpdateGuest updates an existing guest
 func (s *UserService) UpdateGuest(id uuid.UUID, name, email, phone string) (*account.Guest, error) {
 	// Get the guest
-	guest, err := s.userRepo.GetGuestByID(id)
+	guest, err := s.UserRepo.GetGuestByID(id)
 	if err != nil {
 		return nil, err
 	}
@@ -350,7 +350,7 @@ func (s *UserService) UpdateGuest(id uuid.UUID, name, email, phone string) (*acc
 	}
 
 	// Save the guest
-	if err := s.userRepo.UpdateGuest(guest); err != nil {
+	if err := s.UserRepo.UpdateGuest(guest); err != nil {
 		return nil, err
 	}
 
@@ -359,16 +359,16 @@ func (s *UserService) UpdateGuest(id uuid.UUID, name, email, phone string) (*acc
 
 // DeleteGuest deletes a guest by ID
 func (s *UserService) DeleteGuest(id uuid.UUID) error {
-	return s.userRepo.DeleteGuest(id)
+	return s.UserRepo.DeleteGuest(id)
 }
 
 // AddGuestAddress adds an address to a guest
 func (s *UserService) AddGuestAddress(guestID uuid.UUID, address *account.Address) error {
 	address.GuestID = &guestID
-	return s.userRepo.CreateAddress(address)
+	return s.UserRepo.CreateAddress(address)
 }
 
 // GetGuestAddresses gets all addresses for a guest
 func (s *UserService) GetGuestAddresses(guestID uuid.UUID) ([]account.Address, error) {
-	return s.userRepo.GetGuestAddresses(guestID)
+	return s.UserRepo.GetGuestAddresses(guestID)
 }

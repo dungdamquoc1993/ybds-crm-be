@@ -36,18 +36,21 @@ func main() {
 	log.Printf("DB_HOST: %s", cfg.AccountDB.Host)
 	log.Printf("DB_PORT: %s", cfg.AccountDB.Port)
 	log.Printf("DB_USER: %s", cfg.AccountDB.User)
-	log.Printf("DB_NAME: %s", cfg.AccountDB.Name)
+	log.Printf("DB_ACCOUNT_NAME: %s", cfg.AccountDB.Name)
+	log.Printf("DB_NOTIFICATION_NAME: %s", cfg.NotificationDB.Name)
+	log.Printf("DB_ORDER_NAME: %s", cfg.OrderDB.Name)
+	log.Printf("DB_PRODUCT_NAME: %s", cfg.ProductDB.Name)
 	log.Printf("DB_SSL_MODE: %s", cfg.AccountDB.SSLMode)
 
-	// Initialize database connection
-	db, err := pkgdb.NewDatabase(&cfg.AccountDB)
+	// Initialize multiple database connections
+	dbConnections, err := pkgdb.NewDatabaseConnections(cfg)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		log.Fatalf("Failed to connect to databases: %v", err)
 	}
 
-	// Initialize database for internal use
-	if err := database.InitDatabase(db); err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
+	// Initialize databases for internal use
+	if err := database.InitDatabases(dbConnections); err != nil {
+		log.Fatalf("Failed to initialize databases: %v", err)
 	}
 
 	// Initialize JWT service
@@ -61,15 +64,16 @@ func main() {
 	go hub.Run()
 
 	// Initialize services in the correct order to respect dependencies
-	notificationService := services.NewNotificationService(db, hub)
-	userService := services.NewUserService(db, notificationService)
+	notificationService := services.NewNotificationService(dbConnections.NotificationDB, hub)
+	userService := services.NewUserService(dbConnections.AccountDB, notificationService)
+	productService := services.NewProductService(dbConnections.ProductDB, notificationService)
 
 	// Initialize handlers
-	authHandler := handlers.NewAuthHandler(db, jwtService)
-	userHandler := handlers.NewUserHandler(db, notificationService)
-	productHandler := handlers.NewProductHandler(db, notificationService)
-	orderHandler := handlers.NewOrderHandler(db, userService, notificationService)
-	notificationHandler := handlers.NewNotificationHandler(db, hub)
+	authHandler := handlers.NewAuthHandler(dbConnections.AccountDB, jwtService, userService)
+	userHandler := handlers.NewUserHandler(dbConnections.AccountDB, notificationService)
+	productHandler := handlers.NewProductHandler(dbConnections.ProductDB, notificationService)
+	orderHandler := handlers.NewOrderHandler(dbConnections.OrderDB, productService, userService, notificationService)
+	notificationHandler := handlers.NewNotificationHandler(dbConnections.NotificationDB, notificationService, hub)
 
 	// Initialize JWT service wrapper for internal use
 	internalJWTService := services.NewJWTServiceWrapper(jwtService)

@@ -54,8 +54,8 @@ func (h *ProductHandler) RegisterRoutes(router fiber.Router, authMiddleware fibe
 // @Tags products
 // @Accept json
 // @Produce json
-// @Param product body requests.CreateProductRequest true "Product details"
-// @Success 201 {object} responses.ProductResponse
+// @Param product body requests.CreateProductRequest true "Product information"
+// @Success 200 {object} responses.ProductDetailResponse
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
 // @Router /products [post]
@@ -155,7 +155,7 @@ func (h *ProductHandler) CreateProduct(c *fiber.Ctx) error {
 
 // GetProducts godoc
 // @Summary Get all products
-// @Description Get a list of all products with pagination and filtering
+// @Description Get a list of all products with pagination, filtering and search
 // @Tags products
 // @Accept json
 // @Produce json
@@ -209,7 +209,7 @@ func (h *ProductHandler) GetProducts(c *fiber.Ctx) error {
 
 // GetProductByID godoc
 // @Summary Get a product by ID
-// @Description Get a specific product with its inventories and prices
+// @Description Get detailed information about a product by its ID
 // @Tags products
 // @Accept json
 // @Produce json
@@ -252,13 +252,13 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) error {
 
 // UpdateProduct godoc
 // @Summary Update a product
-// @Description Update a product's details
+// @Description Update a product's information
 // @Tags products
 // @Accept json
 // @Produce json
 // @Param id path string true "Product ID"
-// @Param product body requests.UpdateProductRequest true "Product details"
-// @Success 200 {object} responses.ProductResponse
+// @Param product body requests.UpdateProductRequest true "Updated product information"
+// @Success 200 {object} responses.ProductDetailResponse
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
@@ -324,7 +324,7 @@ func (h *ProductHandler) UpdateProduct(c *fiber.Ctx) error {
 
 // DeleteProduct godoc
 // @Summary Delete a product
-// @Description Delete a product and all its related data
+// @Description Delete a product and all associated inventories and prices
 // @Tags products
 // @Accept json
 // @Produce json
@@ -366,14 +366,14 @@ func (h *ProductHandler) DeleteProduct(c *fiber.Ctx) error {
 }
 
 // CreateInventory godoc
-// @Summary Create a new inventory
-// @Description Create a new inventory for a product
+// @Summary Create a new inventory for a product
+// @Description Add inventory information for a specific product
 // @Tags products
 // @Accept json
 // @Produce json
 // @Param id path string true "Product ID"
-// @Param inventory body requests.CreateInventoryRequest true "Inventory details"
-// @Success 201 {object} responses.InventoryResponse
+// @Param inventory body requests.CreateInventoryRequest true "Inventory information"
+// @Success 200 {object} responses.InventoryResponse
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
@@ -437,12 +437,12 @@ func (h *ProductHandler) CreateInventory(c *fiber.Ctx) error {
 
 // UpdateInventory godoc
 // @Summary Update an inventory
-// @Description Update an inventory's details
+// @Description Update inventory information
 // @Tags products
 // @Accept json
 // @Produce json
 // @Param id path string true "Inventory ID"
-// @Param inventory body requests.UpdateInventoryRequest true "Inventory details"
+// @Param inventory body requests.UpdateInventoryRequest true "Updated inventory information"
 // @Success 200 {object} responses.InventoryResponse
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
@@ -515,7 +515,7 @@ func (h *ProductHandler) UpdateInventory(c *fiber.Ctx) error {
 
 // DeleteInventory godoc
 // @Summary Delete an inventory
-// @Description Delete an inventory
+// @Description Delete an inventory record
 // @Tags products
 // @Accept json
 // @Produce json
@@ -557,14 +557,14 @@ func (h *ProductHandler) DeleteInventory(c *fiber.Ctx) error {
 }
 
 // CreatePrice godoc
-// @Summary Create a new price
-// @Description Create a new price for a product
+// @Summary Create a new price for a product
+// @Description Add price information for a specific product
 // @Tags products
 // @Accept json
 // @Produce json
 // @Param id path string true "Product ID"
-// @Param price body requests.CreatePriceRequest true "Price details"
-// @Success 201 {object} responses.PriceResponse
+// @Param price body requests.CreatePriceRequest true "Price information"
+// @Success 200 {object} responses.PriceResponse
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
@@ -636,12 +636,12 @@ func (h *ProductHandler) CreatePrice(c *fiber.Ctx) error {
 
 // UpdatePrice godoc
 // @Summary Update a price
-// @Description Update a price's details
+// @Description Update price information
 // @Tags products
 // @Accept json
 // @Produce json
 // @Param id path string true "Price ID"
-// @Param price body requests.UpdatePriceRequest true "Price details"
+// @Param price body requests.UpdatePriceRequest true "Updated price information"
 // @Success 200 {object} responses.PriceResponse
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
@@ -693,7 +693,7 @@ func (h *ProductHandler) UpdatePrice(c *fiber.Ctx) error {
 
 // DeletePrice godoc
 // @Summary Delete a price
-// @Description Delete a price
+// @Description Delete a price record
 // @Tags products
 // @Accept json
 // @Produce json

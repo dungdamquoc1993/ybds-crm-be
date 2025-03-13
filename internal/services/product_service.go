@@ -12,17 +12,17 @@ import (
 
 // ProductService handles product-related business logic
 type ProductService struct {
-	db                  *gorm.DB
-	productRepo         *repositories.ProductRepository
-	notificationService *NotificationService
+	DB                  *gorm.DB
+	ProductRepo         *repositories.ProductRepository
+	NotificationService *NotificationService
 }
 
 // NewProductService creates a new instance of ProductService
 func NewProductService(db *gorm.DB, notificationService *NotificationService) *ProductService {
 	return &ProductService{
-		db:                  db,
-		productRepo:         repositories.NewProductRepository(db),
-		notificationService: notificationService,
+		DB:                  db,
+		ProductRepo:         repositories.NewProductRepository(db),
+		NotificationService: notificationService,
 	}
 }
 
@@ -38,17 +38,17 @@ type ProductResult struct {
 
 // GetProductByID retrieves a product by ID
 func (s *ProductService) GetProductByID(id uuid.UUID) (*product.Product, error) {
-	return s.productRepo.GetProductByID(id)
+	return s.ProductRepo.GetProductByID(id)
 }
 
 // GetProductBySKU retrieves a product by SKU
 func (s *ProductService) GetProductBySKU(sku string) (*product.Product, error) {
-	return s.productRepo.GetProductBySKU(sku)
+	return s.ProductRepo.GetProductBySKU(sku)
 }
 
 // GetAllProducts retrieves all products with pagination and filtering
 func (s *ProductService) GetAllProducts(page, pageSize int, filters map[string]interface{}) ([]product.Product, int64, error) {
-	return s.productRepo.GetAllProducts(page, pageSize, filters)
+	return s.ProductRepo.GetAllProducts(page, pageSize, filters)
 }
 
 // CreateProduct creates a new product
@@ -79,7 +79,7 @@ func (s *ProductService) CreateProduct(name, description, sku, category, imageUR
 	}
 
 	// Check if product with SKU already exists
-	existingProduct, err := s.productRepo.GetProductBySKU(sku)
+	existingProduct, err := s.ProductRepo.GetProductBySKU(sku)
 	if err == nil && existingProduct != nil && existingProduct.ID != uuid.Nil {
 		return &ProductResult{
 			Success: false,
@@ -98,7 +98,7 @@ func (s *ProductService) CreateProduct(name, description, sku, category, imageUR
 	}
 
 	// Save product
-	if err := s.productRepo.CreateProduct(p); err != nil {
+	if err := s.ProductRepo.CreateProduct(p); err != nil {
 		return &ProductResult{
 			Success: false,
 			Message: "Product creation failed",
@@ -107,14 +107,14 @@ func (s *ProductService) CreateProduct(name, description, sku, category, imageUR
 	}
 
 	// Send notification
-	if s.notificationService != nil {
+	if s.NotificationService != nil {
 		metadata := map[string]interface{}{
 			"product_id":   p.ID.String(),
 			"product_name": p.Name,
 			"sku":          p.SKU,
 			"category":     p.Category,
 		}
-		s.notificationService.CreateProductNotification(p.ID, p.Name, "created", metadata)
+		s.NotificationService.CreateProductNotification(p.ID, p.Name, "created", metadata)
 	}
 
 	return &ProductResult{
@@ -129,7 +129,7 @@ func (s *ProductService) CreateProduct(name, description, sku, category, imageUR
 // UpdateProduct updates an existing product
 func (s *ProductService) UpdateProduct(id uuid.UUID, name, description, sku, category, imageURL string) (*ProductResult, error) {
 	// Get the product
-	p, err := s.productRepo.GetProductByID(id)
+	p, err := s.ProductRepo.GetProductByID(id)
 	if err != nil {
 		return &ProductResult{
 			Success: false,
@@ -147,7 +147,7 @@ func (s *ProductService) UpdateProduct(id uuid.UUID, name, description, sku, cat
 	}
 	if sku != "" && sku != p.SKU {
 		// Check if product with new SKU already exists
-		existingProduct, err := s.productRepo.GetProductBySKU(sku)
+		existingProduct, err := s.ProductRepo.GetProductBySKU(sku)
 		if err == nil && existingProduct != nil && existingProduct.ID != uuid.Nil && existingProduct.ID != id {
 			return &ProductResult{
 				Success: false,
@@ -165,7 +165,7 @@ func (s *ProductService) UpdateProduct(id uuid.UUID, name, description, sku, cat
 	}
 
 	// Save product
-	if err := s.productRepo.UpdateProduct(p); err != nil {
+	if err := s.ProductRepo.UpdateProduct(p); err != nil {
 		return &ProductResult{
 			Success: false,
 			Message: "Product update failed",
@@ -174,14 +174,14 @@ func (s *ProductService) UpdateProduct(id uuid.UUID, name, description, sku, cat
 	}
 
 	// Send notification
-	if s.notificationService != nil {
+	if s.NotificationService != nil {
 		metadata := map[string]interface{}{
 			"product_id":   p.ID.String(),
 			"product_name": p.Name,
 			"sku":          p.SKU,
 			"category":     p.Category,
 		}
-		s.notificationService.CreateProductNotification(p.ID, p.Name, "updated", metadata)
+		s.NotificationService.CreateProductNotification(p.ID, p.Name, "updated", metadata)
 	}
 
 	return &ProductResult{
@@ -196,7 +196,7 @@ func (s *ProductService) UpdateProduct(id uuid.UUID, name, description, sku, cat
 // DeleteProduct deletes a product by ID
 func (s *ProductService) DeleteProduct(id uuid.UUID) (*ProductResult, error) {
 	// Get the product
-	p, err := s.productRepo.GetProductByID(id)
+	p, err := s.ProductRepo.GetProductByID(id)
 	if err != nil {
 		return &ProductResult{
 			Success: false,
@@ -206,7 +206,7 @@ func (s *ProductService) DeleteProduct(id uuid.UUID) (*ProductResult, error) {
 	}
 
 	// Delete the product
-	if err := s.productRepo.DeleteProduct(id); err != nil {
+	if err := s.ProductRepo.DeleteProduct(id); err != nil {
 		return &ProductResult{
 			Success: false,
 			Message: "Product deletion failed",
@@ -215,14 +215,14 @@ func (s *ProductService) DeleteProduct(id uuid.UUID) (*ProductResult, error) {
 	}
 
 	// Send notification
-	if s.notificationService != nil {
+	if s.NotificationService != nil {
 		metadata := map[string]interface{}{
 			"product_id":   p.ID.String(),
 			"product_name": p.Name,
 			"sku":          p.SKU,
 			"category":     p.Category,
 		}
-		s.notificationService.CreateProductNotification(p.ID, p.Name, "deleted", metadata)
+		s.NotificationService.CreateProductNotification(p.ID, p.Name, "deleted", metadata)
 	}
 
 	return &ProductResult{
@@ -246,12 +246,21 @@ type InventoryResult struct {
 
 // GetInventoryByID retrieves an inventory by ID
 func (s *ProductService) GetInventoryByID(id uuid.UUID) (*product.Inventory, error) {
-	return s.productRepo.GetInventoryByID(id)
+	return s.ProductRepo.GetInventoryByID(id)
 }
 
 // GetInventoriesByProductID retrieves all inventories for a product
 func (s *ProductService) GetInventoriesByProductID(productID uuid.UUID) ([]product.Inventory, error) {
-	return s.productRepo.GetInventoriesByProductID(productID)
+	return s.ProductRepo.GetInventoriesByProductID(productID)
+}
+
+// CheckInventoryAvailability checks if there is enough inventory for the given quantity
+func (s *ProductService) CheckInventoryAvailability(inventoryID uuid.UUID, quantity int) (bool, error) {
+	inventory, err := s.ProductRepo.GetInventoryByID(inventoryID)
+	if err != nil {
+		return false, err
+	}
+	return inventory.Quantity >= quantity, nil
 }
 
 // CreateInventory creates a new inventory
@@ -266,7 +275,7 @@ func (s *ProductService) CreateInventory(productID uuid.UUID, size, color string
 	}
 
 	// Check if product exists
-	p, err := s.productRepo.GetProductByID(productID)
+	p, err := s.ProductRepo.GetProductByID(productID)
 	if err != nil {
 		return &InventoryResult{
 			Success: false,
@@ -285,7 +294,7 @@ func (s *ProductService) CreateInventory(productID uuid.UUID, size, color string
 	}
 
 	// Save inventory
-	if err := s.productRepo.CreateInventory(inventory); err != nil {
+	if err := s.ProductRepo.CreateInventory(inventory); err != nil {
 		return &InventoryResult{
 			Success: false,
 			Message: "Inventory creation failed",
@@ -294,7 +303,7 @@ func (s *ProductService) CreateInventory(productID uuid.UUID, size, color string
 	}
 
 	// Send notification if quantity is low
-	if s.notificationService != nil && quantity <= 5 {
+	if s.NotificationService != nil && quantity <= 5 {
 		metadata := map[string]interface{}{
 			"product_id":   p.ID.String(),
 			"product_name": p.Name,
@@ -309,7 +318,7 @@ func (s *ProductService) CreateInventory(productID uuid.UUID, size, color string
 			event = "out_of_stock"
 		}
 
-		s.notificationService.CreateProductNotification(p.ID, p.Name, event, metadata)
+		s.NotificationService.CreateProductNotification(p.ID, p.Name, event, metadata)
 	}
 
 	return &InventoryResult{
@@ -324,7 +333,7 @@ func (s *ProductService) CreateInventory(productID uuid.UUID, size, color string
 // UpdateInventory updates an existing inventory
 func (s *ProductService) UpdateInventory(id uuid.UUID, size, color string, quantity *int, location string) (*InventoryResult, error) {
 	// Get the inventory
-	inventory, err := s.productRepo.GetInventoryByID(id)
+	inventory, err := s.ProductRepo.GetInventoryByID(id)
 	if err != nil {
 		return &InventoryResult{
 			Success: false,
@@ -334,7 +343,7 @@ func (s *ProductService) UpdateInventory(id uuid.UUID, size, color string, quant
 	}
 
 	// Get the product
-	p, err := s.productRepo.GetProductByID(inventory.ProductID)
+	p, err := s.ProductRepo.GetProductByID(inventory.ProductID)
 	if err != nil {
 		return &InventoryResult{
 			Success: false,
@@ -361,7 +370,7 @@ func (s *ProductService) UpdateInventory(id uuid.UUID, size, color string, quant
 	}
 
 	// Save inventory
-	if err := s.productRepo.UpdateInventory(inventory); err != nil {
+	if err := s.ProductRepo.UpdateInventory(inventory); err != nil {
 		return &InventoryResult{
 			Success: false,
 			Message: "Inventory update failed",
@@ -370,7 +379,7 @@ func (s *ProductService) UpdateInventory(id uuid.UUID, size, color string, quant
 	}
 
 	// Send notification if quantity changed to low or zero
-	if s.notificationService != nil && quantity != nil {
+	if s.NotificationService != nil && quantity != nil {
 		// Check if quantity changed significantly
 		if (oldQuantity > 5 && *quantity <= 5) || (oldQuantity > 0 && *quantity == 0) {
 			metadata := map[string]interface{}{
@@ -387,7 +396,7 @@ func (s *ProductService) UpdateInventory(id uuid.UUID, size, color string, quant
 				event = "out_of_stock"
 			}
 
-			s.notificationService.CreateProductNotification(p.ID, p.Name, event, metadata)
+			s.NotificationService.CreateProductNotification(p.ID, p.Name, event, metadata)
 		} else if oldQuantity == 0 && *quantity > 0 {
 			// Back in stock notification
 			metadata := map[string]interface{}{
@@ -399,7 +408,7 @@ func (s *ProductService) UpdateInventory(id uuid.UUID, size, color string, quant
 				"color":        inventory.Color,
 			}
 
-			s.notificationService.CreateProductNotification(p.ID, p.Name, "back_in_stock", metadata)
+			s.NotificationService.CreateProductNotification(p.ID, p.Name, "back_in_stock", metadata)
 		}
 	}
 
@@ -415,7 +424,7 @@ func (s *ProductService) UpdateInventory(id uuid.UUID, size, color string, quant
 // DeleteInventory deletes an inventory by ID
 func (s *ProductService) DeleteInventory(id uuid.UUID) (*InventoryResult, error) {
 	// Get the inventory
-	inventory, err := s.productRepo.GetInventoryByID(id)
+	inventory, err := s.ProductRepo.GetInventoryByID(id)
 	if err != nil {
 		return &InventoryResult{
 			Success: false,
@@ -425,7 +434,7 @@ func (s *ProductService) DeleteInventory(id uuid.UUID) (*InventoryResult, error)
 	}
 
 	// Delete the inventory
-	if err := s.productRepo.DeleteInventory(id); err != nil {
+	if err := s.ProductRepo.DeleteInventory(id); err != nil {
 		return &InventoryResult{
 			Success: false,
 			Message: "Inventory deletion failed",
@@ -455,17 +464,17 @@ type PriceResult struct {
 
 // GetPriceByID retrieves a price by ID
 func (s *ProductService) GetPriceByID(id uuid.UUID) (*product.Price, error) {
-	return s.productRepo.GetPriceByID(id)
+	return s.ProductRepo.GetPriceByID(id)
 }
 
 // GetPricesByProductID retrieves all prices for a product
 func (s *ProductService) GetPricesByProductID(productID uuid.UUID) ([]product.Price, error) {
-	return s.productRepo.GetPricesByProductID(productID)
+	return s.ProductRepo.GetPricesByProductID(productID)
 }
 
 // GetCurrentPrice retrieves the current valid price for a product
 func (s *ProductService) GetCurrentPrice(productID uuid.UUID) (*product.Price, error) {
-	return s.productRepo.GetCurrentPrice(productID)
+	return s.ProductRepo.GetCurrentPrice(productID)
 }
 
 // CreatePrice creates a new price
@@ -488,7 +497,7 @@ func (s *ProductService) CreatePrice(productID uuid.UUID, price float64, currenc
 	}
 
 	// Check if product exists
-	_, err := s.productRepo.GetProductByID(productID)
+	_, err := s.ProductRepo.GetProductByID(productID)
 	if err != nil {
 		return &PriceResult{
 			Success: false,
@@ -507,7 +516,7 @@ func (s *ProductService) CreatePrice(productID uuid.UUID, price float64, currenc
 	}
 
 	// Save price
-	if err := s.productRepo.CreatePrice(p); err != nil {
+	if err := s.ProductRepo.CreatePrice(p); err != nil {
 		return &PriceResult{
 			Success: false,
 			Message: "Price creation failed",
@@ -528,7 +537,7 @@ func (s *ProductService) CreatePrice(productID uuid.UUID, price float64, currenc
 // UpdatePrice updates an existing price
 func (s *ProductService) UpdatePrice(id uuid.UUID, price *float64, currency string, startDate *time.Time, endDate *time.Time) (*PriceResult, error) {
 	// Get the price
-	p, err := s.productRepo.GetPriceByID(id)
+	p, err := s.ProductRepo.GetPriceByID(id)
 	if err != nil {
 		return &PriceResult{
 			Success: false,
@@ -559,7 +568,7 @@ func (s *ProductService) UpdatePrice(id uuid.UUID, price *float64, currency stri
 	}
 
 	// Save price
-	if err := s.productRepo.UpdatePrice(p); err != nil {
+	if err := s.ProductRepo.UpdatePrice(p); err != nil {
 		return &PriceResult{
 			Success: false,
 			Message: "Price update failed",
@@ -580,7 +589,7 @@ func (s *ProductService) UpdatePrice(id uuid.UUID, price *float64, currency stri
 // DeletePrice deletes a price by ID
 func (s *ProductService) DeletePrice(id uuid.UUID) (*PriceResult, error) {
 	// Get the price
-	p, err := s.productRepo.GetPriceByID(id)
+	p, err := s.ProductRepo.GetPriceByID(id)
 	if err != nil {
 		return &PriceResult{
 			Success: false,
@@ -590,7 +599,7 @@ func (s *ProductService) DeletePrice(id uuid.UUID) (*PriceResult, error) {
 	}
 
 	// Delete the price
-	if err := s.productRepo.DeletePrice(id); err != nil {
+	if err := s.ProductRepo.DeletePrice(id); err != nil {
 		return &PriceResult{
 			Success: false,
 			Message: "Price deletion failed",
@@ -606,4 +615,30 @@ func (s *ProductService) DeletePrice(id uuid.UUID) (*PriceResult, error) {
 		Price:     p.Price,
 		Currency:  p.Currency,
 	}, nil
+}
+
+// ReserveInventory reduces the inventory quantity by the given amount
+func (s *ProductService) ReserveInventory(inventoryID uuid.UUID, quantity int) error {
+	inventory, err := s.ProductRepo.GetInventoryByID(inventoryID)
+	if err != nil {
+		return err
+	}
+
+	if inventory.Quantity < quantity {
+		return fmt.Errorf("not enough inventory")
+	}
+
+	inventory.Quantity -= quantity
+	return s.ProductRepo.UpdateInventory(inventory)
+}
+
+// ReleaseInventory increases the inventory quantity by the given amount
+func (s *ProductService) ReleaseInventory(inventoryID uuid.UUID, quantity int) error {
+	inventory, err := s.ProductRepo.GetInventoryByID(inventoryID)
+	if err != nil {
+		return err
+	}
+
+	inventory.Quantity += quantity
+	return s.ProductRepo.UpdateInventory(inventory)
 }
