@@ -1,0 +1,145 @@
+basePath: /api
+definitions:
+  requests.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  requests.RegisterRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+      phone:
+        type: string
+    type: object
+  responses.ErrorResponse:
+    properties:
+      error:
+        type: string
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  responses.LoginResponse:
+    properties:
+      message:
+        type: string
+      success:
+        type: boolean
+      token:
+        type: string
+      user:
+        $ref: '#/definitions/responses.UserResponse'
+    type: object
+  responses.RegisterResponse:
+    properties:
+      email:
+        type: string
+      message:
+        type: string
+      success:
+        type: boolean
+      user_id:
+        type: string
+      username:
+        type: string
+    type: object
+  responses.UserResponse:
+    properties:
+      email:
+        type: string
+      id:
+        type: string
+      roles:
+        items:
+          type: string
+        type: array
+      username:
+        type: string
+    type: object
+host: localhost:3000
+info:
+  contact:
+    email: your-email@domain.com
+    name: API Support
+  description: API Server for YBDS Application
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: YBDS API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Login for admin and AI agent users
+      parameters:
+      - description: Login credentials
+        in: body
+        name: loginRequest
+        required: true
+        schema:
+          $ref: '#/definitions/requests.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.LoginResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Login to the application
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new user with email or phone and password
+      parameters:
+      - description: Registration details
+        in: body
+        name: registerRequest
+        required: true
+        schema:
+          $ref: '#/definitions/requests.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.RegisterResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Register a new user
+      tags:
+      - auth
+schemes:
+- http
+- https
+swagger: "2.0"

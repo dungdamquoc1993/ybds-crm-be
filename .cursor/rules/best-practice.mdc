@@ -1,0 +1,15 @@
+---
+description: Best Practices
+globs: 
+alwaysApply: false
+---
+# API Design
+- Define clear and explicit API endpoints with meaningful names.
+- Ensure REST APIs include pagination and filtering to reduce AI processing load.
+- Maintain consistent JSON responses for better AI processing.
+- Swagger for all API endpoint
+
+# Backend Architecture
+- Follow a stateless backend approach to minimize dependency on application state.
+- Keep the backend simple and structured to support easy expansion.
+

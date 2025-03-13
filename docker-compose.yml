@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ybds-app
+    ports:
+      - "3000:3000"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=crypto-gambling-user
+      - DB_PASS=crypto-gambling-pass
+      - DB_NAME=ybds
+      - DB_SSL_MODE=disable
+      - SERVER_PORT=3000
+      - ENV=development
+      - JWT_SECRET=your_jwt_secret_key_here
+      - JWT_EXPIRY=24h
+      - UPLOAD_DIR=./uploads
+      - MAX_UPLOAD_SIZE=10
+    volumes:
+      - ./uploads:/app/uploads
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks:
+      - ybds-network
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: ybds-postgres
+    ports:
+      - "5435:5432"
+    environment:
+      - POSTGRES_USER=crypto-gambling-user
+      - POSTGRES_PASSWORD=crypto-gambling-pass
+      - POSTGRES_DB=ybds
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - ybds-network
+
+volumes:
+  postgres-data:
+    driver: local
+
+networks:
+  ybds-network:
+    driver: bridge 

@@ -1,0 +1,24 @@
+---
+description: General Guidelines
+globs: 
+alwaysApply: false
+---
+
+# Your rule content
+
+- You can @ files here
+- You can use markdown but dont have to
+
+
+# Documentation & Testing
+
+- Always write Swagger documentation for each API.
+- Develop and execute unit tests for all APIs and critical functionalities.
+- Keep the documentation updated after completing each step.
+- Security & Middleware
+
+- Apply authentication and authorization middleware where necessary.
+- Implement JWT middleware and RBAC guards properly from the start.
+
+- [architechtural-note.md](mdc:.cursor/rules/architechtural-note.md) keep in mind the architechtural that we desire
+
