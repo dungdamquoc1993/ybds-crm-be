@@ -19,10 +19,10 @@ services:
       - ENV=development
       - JWT_SECRET=your_jwt_secret_key_here
       - JWT_EXPIRY=24h
-      - UPLOAD_DIR=./uploads
+      - UPLOAD_DIR=/app/uploads
       - MAX_UPLOAD_SIZE=10
     volumes:
-      - ./uploads:/app/uploads
+      - uploads-data:/app/uploads
     depends_on:
       - postgres
     restart: unless-stopped
@@ -46,6 +46,8 @@ services:
 
 volumes:
   postgres-data:
+    driver: local
+  uploads-data:
     driver: local
 
 networks:

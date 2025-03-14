@@ -13,7 +13,7 @@ type Inventory struct {
 	Color     string    `gorm:"column:color;type:varchar(50);index" json:"color"`
 	Quantity  int       `gorm:"column:quantity;not null;default:0;index" json:"quantity"`
 	Location  string    `gorm:"column:location;type:varchar(255);index" json:"location"`
-	Product   Product   `gorm:"foreignKey:ProductID" json:"product,omitempty"`
+	Product   Product   `gorm:"foreignKey:ProductID" json:"-"`
 }
 
 // TableName specifies the table name for Inventory

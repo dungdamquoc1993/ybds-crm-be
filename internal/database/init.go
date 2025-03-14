@@ -74,8 +74,6 @@ func migrateAccountModels(db *gorm.DB) error {
 		&account.User{},
 		&account.Role{},
 		&account.UserRole{},
-		&account.Guest{},
-		&account.Address{},
 	)
 }
 
@@ -106,5 +104,6 @@ func migrateProductModels(db *gorm.DB) error {
 		&product.Inventory{},
 		&product.Price{},
 		&product.InventoryTransaction{},
+		&product.ProductImage{},
 	)
 }

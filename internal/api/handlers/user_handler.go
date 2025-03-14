@@ -29,11 +29,6 @@ func (h *UserHandler) RegisterRoutes(router fiber.Router, authMiddleware fiber.H
 
 	users.Get("/", h.GetUsers)
 	users.Get("/:id", h.GetUserByID)
-
-	guests := router.Group("/guests")
-	guests.Use(authMiddleware)
-
-	guests.Get("/:id", h.GetGuest)
 }
 
 // GetUsers godoc
@@ -121,48 +116,5 @@ func (h *UserHandler) GetUserByID(c *fiber.Ctx) error {
 		"success": true,
 		"message": "User retrieved successfully",
 		"data":    user,
-	})
-}
-
-// GetGuest godoc
-// @Summary Get a guest with all relationships
-// @Description Get a guest with their addresses
-// @Tags guests
-// @Accept json
-// @Produce json
-// @Param id path string true "Guest ID"
-// @Success 200 {object} responses.GuestDetailResponse
-// @Failure 400 {object} responses.ErrorResponse
-// @Failure 404 {object} responses.ErrorResponse
-// @Failure 500 {object} responses.ErrorResponse
-// @Router /api/guests/{id} [get]
-// @Security ApiKeyAuth
-func (h *UserHandler) GetGuest(c *fiber.Ctx) error {
-	// Parse guest ID from path
-	idStr := c.Params("id")
-	id, err := uuid.Parse(idStr)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(responses.ErrorResponse{
-			Success: false,
-			Message: "Invalid guest ID format",
-			Error:   err.Error(),
-		})
-	}
-
-	// Get guest from service
-	guest, err := h.userService.GetGuestByID(id)
-	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(responses.ErrorResponse{
-			Success: false,
-			Message: "Guest not found",
-			Error:   err.Error(),
-		})
-	}
-
-	// Return response
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"success": true,
-		"message": "Guest retrieved successfully",
-		"data":    guest,
 	})
 }

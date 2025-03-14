@@ -101,19 +101,11 @@ func (s *UserService) CreateUser(email, phone, password string) (*UserResult, er
 		}, fmt.Errorf("email or phone number already registered")
 	}
 
-	// Generate username if email provided
-	username := ""
+	// Generate username if not provided
+	username := fmt.Sprintf("user_%s", uuid.New().String()[:8])
 	if email != "" {
-		// Use part before @ as username
-		for i, c := range email {
-			if c == '@' {
-				username = email[:i]
-				break
-			}
-		}
-	} else {
-		// Use phone as username if no email
-		username = phone
+		// Use part of email as username
+		username = email[:min(len(email), 8)]
 	}
 
 	// Hash password
@@ -126,8 +118,8 @@ func (s *UserService) CreateUser(email, phone, password string) (*UserResult, er
 		}, err
 	}
 
-	// Create user in database
-	user := account.User{
+	// Create user
+	user := &account.User{
 		Username:     username,
 		Email:        email,
 		Phone:        phone,
@@ -138,7 +130,16 @@ func (s *UserService) CreateUser(email, phone, password string) (*UserResult, er
 
 	// Start transaction
 	tx := s.DB.Begin()
-	if err := tx.Create(&user).Error; err != nil {
+	if tx.Error != nil {
+		return &UserResult{
+			Success: false,
+			Message: "User creation failed",
+			Error:   "Database transaction error",
+		}, tx.Error
+	}
+
+	// Save user
+	if err := tx.Create(user).Error; err != nil {
 		tx.Rollback()
 		return &UserResult{
 			Success: false,
@@ -147,14 +148,14 @@ func (s *UserService) CreateUser(email, phone, password string) (*UserResult, er
 		}, err
 	}
 
-	// By default, assign customer role
-	var customerRole account.Role
-	if err := tx.Where("name = ?", account.RoleCustomer).First(&customerRole).Error; err != nil {
-		// Create customer role if it doesn't exist
-		customerRole = account.Role{
-			Name: account.RoleCustomer,
+	// Assign default role (staff)
+	role, err := s.UserRepo.GetRoleByName(account.RoleStaff)
+	if err != nil {
+		// Create the role if it doesn't exist
+		role = &account.Role{
+			Name: account.RoleStaff,
 		}
-		if err := tx.Create(&customerRole).Error; err != nil {
+		if err := tx.Create(role).Error; err != nil {
 			tx.Rollback()
 			return &UserResult{
 				Success: false,
@@ -165,11 +166,11 @@ func (s *UserService) CreateUser(email, phone, password string) (*UserResult, er
 	}
 
 	// Assign role to user
-	userRole := account.UserRole{
+	userRole := &account.UserRole{
 		UserID: user.ID,
-		RoleID: customerRole.ID,
+		RoleID: role.ID,
 	}
-	if err := tx.Create(&userRole).Error; err != nil {
+	if err := tx.Create(userRole).Error; err != nil {
 		tx.Rollback()
 		return &UserResult{
 			Success: false,
@@ -190,15 +191,18 @@ func (s *UserService) CreateUser(email, phone, password string) (*UserResult, er
 	// Send welcome notification
 	if s.NotificationService != nil {
 		metadata := notification.Metadata{
-			"user_id": user.ID.String(),
+			"user_id":  user.ID.String(),
+			"username": user.Username,
+			"email":    user.Email,
 		}
+
 		s.NotificationService.CreateNotification(
 			&user.ID,
 			notification.RecipientUser,
 			"Welcome to our platform!",
-			"Thank you for registering. We're excited to have you on board.",
+			"Thank you for registering with us.",
 			metadata,
-			[]notification.ChannelType{notification.ChannelWebsocket},
+			[]notification.ChannelType{notification.ChannelEmail},
 		)
 	}
 
@@ -208,10 +212,11 @@ func (s *UserService) CreateUser(email, phone, password string) (*UserResult, er
 		UserID:   user.ID,
 		Username: user.Username,
 		Email:    user.Email,
+		Roles:    []string{string(role.Name)},
 	}, nil
 }
 
-// UpdateUser updates an existing user
+// UpdateUser updates a user's information
 func (s *UserService) UpdateUser(id uuid.UUID, email, phone, username string, isActive *bool) (*UserResult, error) {
 	// Get the user
 	user, err := s.UserRepo.GetUserByID(id)
@@ -224,15 +229,66 @@ func (s *UserService) UpdateUser(id uuid.UUID, email, phone, username string, is
 	}
 
 	// Update fields if provided
-	if email != "" {
+	if email != "" && email != user.Email {
+		// Check if email is already in use
+		var count int64
+		if err := s.DB.Model(&account.User{}).Where("email = ? AND id != ?", email, id).Count(&count).Error; err != nil {
+			return &UserResult{
+				Success: false,
+				Message: "User update failed",
+				Error:   "Error checking email uniqueness",
+			}, err
+		}
+		if count > 0 {
+			return &UserResult{
+				Success: false,
+				Message: "User update failed",
+				Error:   "Email already in use",
+			}, fmt.Errorf("email already in use")
+		}
 		user.Email = email
 	}
-	if phone != "" {
+
+	if phone != "" && phone != user.Phone {
+		// Check if phone is already in use
+		var count int64
+		if err := s.DB.Model(&account.User{}).Where("phone = ? AND id != ?", phone, id).Count(&count).Error; err != nil {
+			return &UserResult{
+				Success: false,
+				Message: "User update failed",
+				Error:   "Error checking phone uniqueness",
+			}, err
+		}
+		if count > 0 {
+			return &UserResult{
+				Success: false,
+				Message: "User update failed",
+				Error:   "Phone already in use",
+			}, fmt.Errorf("phone already in use")
+		}
 		user.Phone = phone
 	}
-	if username != "" {
+
+	if username != "" && username != user.Username {
+		// Check if username is already in use
+		var count int64
+		if err := s.DB.Model(&account.User{}).Where("username = ? AND id != ?", username, id).Count(&count).Error; err != nil {
+			return &UserResult{
+				Success: false,
+				Message: "User update failed",
+				Error:   "Error checking username uniqueness",
+			}, err
+		}
+		if count > 0 {
+			return &UserResult{
+				Success: false,
+				Message: "User update failed",
+				Error:   "Username already in use",
+			}, fmt.Errorf("username already in use")
+		}
 		user.Username = username
 	}
+
 	if isActive != nil {
 		user.IsActive = *isActive
 	}
@@ -246,7 +302,7 @@ func (s *UserService) UpdateUser(id uuid.UUID, email, phone, username string, is
 		}, err
 	}
 
-	// Extract roles
+	// Get user roles
 	var roles []string
 	for _, role := range user.Roles {
 		roles = append(roles, string(role.Name))
@@ -262,7 +318,7 @@ func (s *UserService) UpdateUser(id uuid.UUID, email, phone, username string, is
 	}, nil
 }
 
-// DeleteUser deletes a user by ID
+// DeleteUser deletes a user
 func (s *UserService) DeleteUser(id uuid.UUID) (*UserResult, error) {
 	// Get the user
 	user, err := s.UserRepo.GetUserByID(id)
@@ -274,12 +330,42 @@ func (s *UserService) DeleteUser(id uuid.UUID) (*UserResult, error) {
 		}, err
 	}
 
-	// Delete the user
-	if err := s.UserRepo.DeleteUser(id); err != nil {
+	// Start transaction
+	tx := s.DB.Begin()
+	if tx.Error != nil {
+		return &UserResult{
+			Success: false,
+			Message: "User deletion failed",
+			Error:   "Database transaction error",
+		}, tx.Error
+	}
+
+	// Delete user roles
+	if err := tx.Where("user_id = ?", id).Delete(&account.UserRole{}).Error; err != nil {
+		tx.Rollback()
+		return &UserResult{
+			Success: false,
+			Message: "User deletion failed",
+			Error:   "Error deleting user roles",
+		}, err
+	}
+
+	// Delete user
+	if err := tx.Delete(user).Error; err != nil {
+		tx.Rollback()
 		return &UserResult{
 			Success: false,
 			Message: "User deletion failed",
 			Error:   "Error deleting user",
+		}, err
+	}
+
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		return &UserResult{
+			Success: false,
+			Message: "User deletion failed",
+			Error:   "Error committing transaction",
 		}, err
 	}
 
@@ -292,83 +378,10 @@ func (s *UserService) DeleteUser(id uuid.UUID) (*UserResult, error) {
 	}, nil
 }
 
-// AddUserAddress adds an address to a user
-func (s *UserService) AddUserAddress(userID uuid.UUID, address *account.Address) error {
-	address.UserID = &userID
-	return s.UserRepo.CreateAddress(address)
-}
-
-// UpdateUserAddress updates a user's address
-func (s *UserService) UpdateUserAddress(addressID uuid.UUID, address *account.Address) error {
-	address.ID = addressID
-	return s.UserRepo.UpdateAddress(address)
-}
-
-// DeleteUserAddress deletes a user's address
-func (s *UserService) DeleteUserAddress(addressID uuid.UUID) error {
-	return s.UserRepo.DeleteAddress(addressID)
-}
-
-// GetUserAddresses gets all addresses for a user
-func (s *UserService) GetUserAddresses(userID uuid.UUID) ([]account.Address, error) {
-	return s.UserRepo.GetUserAddresses(userID)
-}
-
-// GetGuestByID retrieves a guest by ID
-func (s *UserService) GetGuestByID(id uuid.UUID) (*account.Guest, error) {
-	return s.UserRepo.GetGuestByID(id)
-}
-
-// CreateGuest creates a new guest
-func (s *UserService) CreateGuest(name, email, phone string) (*account.Guest, error) {
-	guest := &account.Guest{
-		Name:  name,
-		Email: email,
-		Phone: phone,
+// Helper function for min
+func min(a, b int) int {
+	if a < b {
+		return a
 	}
-	err := s.UserRepo.CreateGuest(guest)
-	return guest, err
-}
-
-// UpdateGuest updates an existing guest
-func (s *UserService) UpdateGuest(id uuid.UUID, name, email, phone string) (*account.Guest, error) {
-	// Get the guest
-	guest, err := s.UserRepo.GetGuestByID(id)
-	if err != nil {
-		return nil, err
-	}
-
-	// Update fields if provided
-	if name != "" {
-		guest.Name = name
-	}
-	if email != "" {
-		guest.Email = email
-	}
-	if phone != "" {
-		guest.Phone = phone
-	}
-
-	// Save the guest
-	if err := s.UserRepo.UpdateGuest(guest); err != nil {
-		return nil, err
-	}
-
-	return guest, nil
-}
-
-// DeleteGuest deletes a guest by ID
-func (s *UserService) DeleteGuest(id uuid.UUID) error {
-	return s.UserRepo.DeleteGuest(id)
-}
-
-// AddGuestAddress adds an address to a guest
-func (s *UserService) AddGuestAddress(guestID uuid.UUID, address *account.Address) error {
-	address.GuestID = &guestID
-	return s.UserRepo.CreateAddress(address)
-}
-
-// GetGuestAddresses gets all addresses for a guest
-func (s *UserService) GetGuestAddresses(guestID uuid.UUID) ([]account.Address, error) {
-	return s.UserRepo.GetGuestAddresses(guestID)
+	return b
 }

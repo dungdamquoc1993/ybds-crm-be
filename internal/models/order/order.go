@@ -1,18 +1,7 @@
 package order
 
 import (
-	"github.com/google/uuid"
 	"github.com/ybds/internal/models"
-)
-
-// CustomerType defines the type of customer
-type CustomerType string
-
-const (
-	// CustomerUser represents a registered user
-	CustomerUser CustomerType = "user"
-	// CustomerGuest represents a guest customer
-	CustomerGuest CustomerType = "guest"
 )
 
 // PaymentMethod defines the payment method for an order
@@ -56,15 +45,25 @@ const (
 // Order represents an order in the system
 type Order struct {
 	models.Base
-	CustomerID    uuid.UUID     `gorm:"column:customer_id;type:uuid;not null;index" json:"customer_id"`
-	CustomerType  CustomerType  `gorm:"column:customer_type;type:varchar(50);not null;index" json:"customer_type"`
-	PaymentMethod PaymentMethod `gorm:"column:payment_method;type:varchar(50);not null;index" json:"payment_method"`
-	PaymentStatus string        `gorm:"column:payment_status;type:varchar(50);not null;default:'pending';index" json:"payment_status"`
-	TotalAmount   float64       `gorm:"column:total_amount;type:decimal(10,2);not null" json:"total_amount"`
-	PaidAmount    float64       `gorm:"column:paid_amount;type:decimal(10,2);default:0" json:"paid_amount"`
-	OrderStatus   OrderStatus   `gorm:"column:order_status;type:varchar(50);not null;default:'pending_confirmation';index" json:"order_status"`
-	Items         []OrderItem   `gorm:"foreignKey:OrderID" json:"items,omitempty"`
-	Shipment      *Shipment     `gorm:"foreignKey:OrderID" json:"shipment,omitempty"`
+	PaymentMethod    PaymentMethod `gorm:"column:payment_method;type:varchar(50);not null;index" json:"payment_method"`
+	TotalAmount      float64       `gorm:"column:total_amount;type:decimal(10,2);not null" json:"total_amount"`
+	DiscountAmount   float64       `gorm:"column:discount_amount;type:decimal(10,2);not null;default:0" json:"discount_amount"`
+	DiscountReason   string        `gorm:"column:discount_reason;type:varchar(255)" json:"discount_reason"`
+	FinalTotalAmount float64       `gorm:"column:final_total_amount;type:decimal(10,2);not null" json:"final_total_amount"`
+	OrderStatus      OrderStatus   `gorm:"column:order_status;type:varchar(50);not null;default:'pending_confirmation';index" json:"order_status"`
+	// Shipping address fields
+	ShippingAddress  string `gorm:"column:shipping_address;type:text" json:"shipping_address"`
+	ShippingWard     string `gorm:"column:shipping_ward;type:varchar(100)" json:"shipping_ward"`
+	ShippingDistrict string `gorm:"column:shipping_district;type:varchar(100)" json:"shipping_district"`
+	ShippingCity     string `gorm:"column:shipping_city;type:varchar(100)" json:"shipping_city"`
+	ShippingCountry  string `gorm:"column:shipping_country;type:varchar(100);default:'Vietnam'" json:"shipping_country"`
+	// Customer contact information
+	CustomerName  string `gorm:"column:customer_name;type:varchar(255)" json:"customer_name"`
+	CustomerEmail string `gorm:"column:customer_email;type:varchar(255)" json:"customer_email"`
+	CustomerPhone string `gorm:"column:customer_phone;type:varchar(20)" json:"customer_phone"`
+	// Relationships
+	Items    []OrderItem `gorm:"foreignKey:OrderID" json:"items,omitempty"`
+	Shipment *Shipment   `gorm:"foreignKey:OrderID" json:"shipment,omitempty"`
 }
 
 // TableName specifies the table name for Order

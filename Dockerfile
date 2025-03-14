@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/app
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/server
 
 # Final stage
 FROM alpine:latest
@@ -31,8 +31,11 @@ COPY --from=builder /app/main .
 # Copy the .env file
 COPY .env .
 
-# Create uploads directory
-RUN mkdir -p uploads
+# Create uploads directory with subdirectories
+RUN mkdir -p /app/uploads/products
+
+# Set permissions for uploads directory
+RUN chmod -R 755 /app/uploads
 
 # Expose the port
 EXPOSE 3000

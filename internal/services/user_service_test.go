@@ -219,33 +219,6 @@ func TestUser(t *testing.T) {
 	assert.True(t, user.IsActive)
 }
 
-// TestAddress tests the Address model
-func TestAddress(t *testing.T) {
-	// Create an Address
-	addressID := uuid.New()
-	userID := uuid.New()
-	address := account.Address{
-		Address:   "123 Main St",
-		Ward:      "Ward 1",
-		District:  "District 1",
-		City:      "Anytown",
-		Country:   "Vietnam",
-		IsDefault: true,
-		UserID:    &userID,
-	}
-	address.ID = addressID
-
-	// Test the fields
-	assert.Equal(t, addressID, address.ID)
-	assert.Equal(t, "123 Main St", address.Address)
-	assert.Equal(t, "Ward 1", address.Ward)
-	assert.Equal(t, "District 1", address.District)
-	assert.Equal(t, "Anytown", address.City)
-	assert.Equal(t, "Vietnam", address.Country)
-	assert.True(t, address.IsDefault)
-	assert.Equal(t, &userID, address.UserID)
-}
-
 // TestCreateUserComprehensive demonstrates a comprehensive test for the CreateUser method
 func TestCreateUserComprehensive(t *testing.T) {
 	// This is an integration test that would require a database

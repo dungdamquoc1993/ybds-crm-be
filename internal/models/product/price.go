@@ -17,7 +17,7 @@ type Price struct {
 	Currency  string     `gorm:"column:currency;type:varchar(10);not null;default:'VND'" json:"currency"`
 	StartDate time.Time  `gorm:"column:start_date;not null;index" json:"start_date"`
 	EndDate   *time.Time `gorm:"column:end_date;index" json:"end_date,omitempty"`
-	Product   Product    `gorm:"foreignKey:ProductID" json:"product,omitempty"`
+	Product   Product    `gorm:"foreignKey:ProductID" json:"-"`
 }
 
 // TableName specifies the table name for Price

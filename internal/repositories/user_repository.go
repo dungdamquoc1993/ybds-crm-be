@@ -23,7 +23,6 @@ func (r *UserRepository) GetUserByID(id uuid.UUID) (*account.User, error) {
 	var user account.User
 	err := r.db.Where("id = ?", id).
 		Preload("Roles").
-		Preload("Addresses").
 		First(&user).Error
 	return &user, err
 }
@@ -83,7 +82,6 @@ func (r *UserRepository) GetAllUsers(page, pageSize int) ([]account.User, int64,
 	offset := (page - 1) * pageSize
 	err := r.db.Offset(offset).Limit(pageSize).
 		Preload("Roles").
-		Preload("Addresses").
 		Find(&users).Error
 
 	return users, total, err
@@ -129,57 +127,4 @@ func (r *UserRepository) AssignRoleToUser(userID, roleID uuid.UUID) error {
 func (r *UserRepository) RemoveRoleFromUser(userID, roleID uuid.UUID) error {
 	return r.db.Where("user_id = ? AND role_id = ?", userID, roleID).
 		Delete(&account.UserRole{}).Error
-}
-
-// GetUserAddresses retrieves all addresses for a user
-func (r *UserRepository) GetUserAddresses(userID uuid.UUID) ([]account.Address, error) {
-	var addresses []account.Address
-	err := r.db.Where("user_id = ?", userID).Find(&addresses).Error
-	return addresses, err
-}
-
-// CreateAddress creates a new address
-func (r *UserRepository) CreateAddress(address *account.Address) error {
-	return r.db.Create(address).Error
-}
-
-// UpdateAddress updates an existing address
-func (r *UserRepository) UpdateAddress(address *account.Address) error {
-	return r.db.Save(address).Error
-}
-
-// DeleteAddress deletes an address by ID
-func (r *UserRepository) DeleteAddress(id uuid.UUID) error {
-	return r.db.Delete(&account.Address{}, id).Error
-}
-
-// GetGuestByID retrieves a guest by ID
-func (r *UserRepository) GetGuestByID(id uuid.UUID) (*account.Guest, error) {
-	var guest account.Guest
-	err := r.db.Where("id = ?", id).
-		Preload("Addresses").
-		First(&guest).Error
-	return &guest, err
-}
-
-// CreateGuest creates a new guest
-func (r *UserRepository) CreateGuest(guest *account.Guest) error {
-	return r.db.Create(guest).Error
-}
-
-// UpdateGuest updates an existing guest
-func (r *UserRepository) UpdateGuest(guest *account.Guest) error {
-	return r.db.Save(guest).Error
-}
-
-// DeleteGuest deletes a guest by ID
-func (r *UserRepository) DeleteGuest(id uuid.UUID) error {
-	return r.db.Delete(&account.Guest{}, id).Error
-}
-
-// GetGuestAddresses retrieves all addresses for a guest
-func (r *UserRepository) GetGuestAddresses(guestID uuid.UUID) ([]account.Address, error) {
-	var addresses []account.Address
-	err := r.db.Where("guest_id = ?", guestID).Find(&addresses).Error
-	return addresses, err
 }

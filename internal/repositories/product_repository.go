@@ -26,6 +26,7 @@ func (r *ProductRepository) GetProductByID(id uuid.UUID) (*product.Product, erro
 	err := r.db.Where("id = ?", id).
 		Preload("Inventory").
 		Preload("Prices").
+		Preload("Images").
 		First(&p).Error
 	return &p, err
 }
@@ -36,6 +37,7 @@ func (r *ProductRepository) GetProductBySKU(sku string) (*product.Product, error
 	err := r.db.Where("sku = ?", sku).
 		Preload("Inventory").
 		Preload("Prices").
+		Preload("Images").
 		First(&p).Error
 	return &p, err
 }
@@ -69,6 +71,7 @@ func (r *ProductRepository) GetAllProducts(page, pageSize int, filters map[strin
 	err := query.Offset(offset).Limit(pageSize).
 		Preload("Inventory").
 		Preload("Prices").
+		Preload("Images").
 		Find(&products).Error
 
 	return products, total, err

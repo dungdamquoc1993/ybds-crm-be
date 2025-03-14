@@ -233,24 +233,15 @@ func TestOrderHandler(t *testing.T) {
 	// Test case 1: Get all orders
 	t.Run("GetOrders", func(t *testing.T) {
 		// Setup mock expectations
-		customerID := uuid.New()
 		orders := []order.Order{
 			{
-				CustomerID:    customerID,
-				CustomerType:  order.CustomerUser,
 				PaymentMethod: order.PaymentCash,
-				PaymentStatus: "pending",
 				TotalAmount:   100.0,
-				PaidAmount:    0.0,
 				OrderStatus:   order.OrderPendingConfirmation,
 			},
 			{
-				CustomerID:    customerID,
-				CustomerType:  order.CustomerUser,
 				PaymentMethod: order.PaymentCash,
-				PaymentStatus: "paid",
 				TotalAmount:   200.0,
-				PaidAmount:    200.0,
 				OrderStatus:   order.OrderDelivered,
 			},
 		}
@@ -291,14 +282,9 @@ func TestOrderHandler(t *testing.T) {
 	t.Run("GetOrderByID", func(t *testing.T) {
 		// Setup mock expectations
 		orderID := uuid.New()
-		customerID := uuid.New()
 		testOrder := &order.Order{
-			CustomerID:    customerID,
-			CustomerType:  order.CustomerUser,
 			PaymentMethod: order.PaymentCash,
-			PaymentStatus: "pending",
 			TotalAmount:   100.0,
-			PaidAmount:    0.0,
 			OrderStatus:   order.OrderPendingConfirmation,
 		}
 		testOrder.ID = orderID

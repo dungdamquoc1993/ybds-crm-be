@@ -23,6 +23,7 @@ import (
 	"github.com/ybds/pkg/config"
 	pkgdb "github.com/ybds/pkg/database"
 	pkgjwt "github.com/ybds/pkg/jwt"
+	pkgupload "github.com/ybds/pkg/upload"
 	pkgws "github.com/ybds/pkg/websocket"
 )
 
@@ -45,6 +46,17 @@ import (
 // @in header
 // @name Authorization
 // @description JWT Authorization header using the Bearer scheme. Example: "Bearer {token}"
+
+// @externalDocs.description Find out more about Swagger
+// @externalDocs.url https://swagger.io/docs/
+
+// @tag.name products
+// @tag.description Product management endpoints
+
+// @tag.name product-images
+// @tag.description Product image management endpoints. Images are stored at /uploads/products/ and can be accessed via this path.
+
+// @x-upload-info {"base-path":"/uploads","products-path":"/uploads/products","max-size":"10MB","allowed-types":["image/jpeg","image/png","image/gif","image/webp"]}
 
 func main() {
 	// Load configuration
@@ -84,15 +96,23 @@ func main() {
 	hub := pkgws.NewHub()
 	go hub.Run()
 
+	// Initialize upload service
+	uploadConfig := pkgupload.NewConfig("./uploads")
+	uploadConfig.WithSubDir("products")
+	uploadService, err := pkgupload.NewService(uploadConfig)
+	if err != nil {
+		log.Fatalf("Failed to initialize upload service: %v", err)
+	}
+
 	// Initialize services in the correct order to respect dependencies
 	notificationService := services.NewNotificationService(dbConnections.NotificationDB, hub)
 	userService := services.NewUserService(dbConnections.AccountDB, notificationService)
-	productService := services.NewProductService(dbConnections.ProductDB, notificationService)
+	productService := services.NewProductService(dbConnections.ProductDB, notificationService, uploadService)
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(dbConnections.AccountDB, jwtService, userService)
 	userHandler := handlers.NewUserHandler(dbConnections.AccountDB, notificationService)
-	productHandler := handlers.NewProductHandler(dbConnections.ProductDB, notificationService)
+	productHandler := handlers.NewProductHandler(dbConnections.ProductDB, notificationService, uploadService)
 	orderHandler := handlers.NewOrderHandler(dbConnections.OrderDB, productService, userService, notificationService)
 	notificationHandler := handlers.NewNotificationHandler(dbConnections.NotificationDB, notificationService, hub)
 
@@ -101,6 +121,9 @@ func main() {
 		AppName:      "YBDS API",
 		ErrorHandler: customErrorHandler,
 	})
+
+	// Register static routes for serving uploaded files
+	pkgupload.RegisterStaticRoutes(app, uploadConfig.BaseDir)
 
 	// Register middleware
 	app.Use(recover.New())
@@ -164,41 +187,16 @@ func main() {
 	// Register user routes - Admin only
 	adminRoutes.Get("/users", userHandler.GetUsers)
 	adminRoutes.Get("/users/:id", userHandler.GetUserByID)
-	adminRoutes.Get("/guests/:id", userHandler.GetGuest)
 
-	// Register product routes - Admin only
-	adminRoutes.Post("/products", productHandler.CreateProduct)
-	adminRoutes.Put("/products/:id", productHandler.UpdateProduct)
-	adminRoutes.Delete("/products/:id", productHandler.DeleteProduct)
+	// Register product routes using the RegisterRoutes method
+	productHandler.RegisterRoutes(adminOrAgentRoutes, middleware.JWTAuth(jwtService))
 
-	// Inventory routes - Admin only
-	adminRoutes.Post("/products/:id/inventories", productHandler.CreateInventory)
-	adminRoutes.Put("/products/inventories/:id", productHandler.UpdateInventory)
-	adminRoutes.Delete("/products/inventories/:id", productHandler.DeleteInventory)
+	// Register order routes using the RegisterRoutes method
+	orderHandler.RegisterRoutes(adminOrAgentRoutes, middleware.JWTAuth(jwtService))
 
-	// Price routes - Admin only
-	adminRoutes.Post("/products/:id/prices", productHandler.CreatePrice)
-	adminRoutes.Put("/products/prices/:id", productHandler.UpdatePrice)
-	adminRoutes.Delete("/products/prices/:id", productHandler.DeletePrice)
-
-	// Product read routes - Admin or Agent
-	adminOrAgentRoutes.Get("/products", productHandler.GetProducts)
-	adminOrAgentRoutes.Get("/products/:id", productHandler.GetProductByID)
-
-	// Register order routes - Admin only for management
+	// Admin-only order routes
 	adminRoutes.Put("/orders/:id/status", orderHandler.UpdateOrderStatus)
-	adminRoutes.Put("/orders/:id/payment", orderHandler.UpdatePaymentStatus)
 	adminRoutes.Delete("/orders/:id", orderHandler.DeleteOrder)
-
-	// Order routes - Admin or Agent
-	adminOrAgentRoutes.Post("/orders", orderHandler.CreateOrder)
-	adminOrAgentRoutes.Get("/orders", orderHandler.GetOrders)
-	adminOrAgentRoutes.Get("/orders/:id", orderHandler.GetOrderByID)
-
-	// Order item routes - Admin or Agent
-	adminOrAgentRoutes.Post("/orders/:id/items", orderHandler.AddOrderItem)
-	adminOrAgentRoutes.Put("/orders/items/:id", orderHandler.UpdateOrderItem)
-	adminOrAgentRoutes.Delete("/orders/items/:id", orderHandler.DeleteOrderItem)
 
 	// Register notification routes - Admin or Agent
 	adminOrAgentRoutes.Get("/notifications", notificationHandler.GetNotifications)

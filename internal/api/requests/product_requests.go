@@ -97,6 +97,26 @@ func (r *CreateInventoryRequest) Validate() error {
 	return nil
 }
 
+// CreateMultipleInventoriesRequest defines the request model for creating multiple inventories
+type CreateMultipleInventoriesRequest struct {
+	Inventories []CreateInventoryRequest `json:"inventories"`
+}
+
+// Validate validates the create multiple inventories request
+func (r *CreateMultipleInventoriesRequest) Validate() error {
+	if len(r.Inventories) == 0 {
+		return fmt.Errorf("at least one inventory is required")
+	}
+
+	for i, inv := range r.Inventories {
+		if err := inv.Validate(); err != nil {
+			return fmt.Errorf("inventory %d: %s", i+1, err.Error())
+		}
+	}
+
+	return nil
+}
+
 // UpdateInventoryRequest defines the request model for updating an inventory
 type UpdateInventoryRequest struct {
 	Size     string `json:"size"`

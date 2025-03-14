@@ -57,15 +57,10 @@ func TestOrderItemInfo(t *testing.T) {
 func TestOrder(t *testing.T) {
 	// Create an Order
 	orderID := uuid.New()
-	customerID := uuid.New()
 	createdBy := uuid.New()
 	o := order.Order{
-		CustomerID:    customerID,
-		CustomerType:  order.CustomerUser,
 		PaymentMethod: order.PaymentCash,
-		PaymentStatus: "pending",
 		TotalAmount:   1000.0,
-		PaidAmount:    0.0,
 		OrderStatus:   order.OrderPendingConfirmation,
 	}
 	o.ID = orderID
@@ -73,12 +68,8 @@ func TestOrder(t *testing.T) {
 
 	// Test the fields
 	assert.Equal(t, orderID, o.ID)
-	assert.Equal(t, customerID, o.CustomerID)
-	assert.Equal(t, order.CustomerUser, o.CustomerType)
 	assert.Equal(t, order.PaymentCash, o.PaymentMethod)
-	assert.Equal(t, "pending", o.PaymentStatus)
 	assert.Equal(t, 1000.0, o.TotalAmount)
-	assert.Equal(t, 0.0, o.PaidAmount)
 	assert.Equal(t, order.OrderPendingConfirmation, o.OrderStatus)
 	assert.Equal(t, &createdBy, o.CreatedBy)
 }

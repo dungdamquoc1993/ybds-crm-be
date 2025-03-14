@@ -1,16 +1,51 @@
 basePath: /
 definitions:
+  handlers.ProductImage:
+    description: Product image information
+    properties:
+      created_at:
+        example: "2023-01-01T12:00:00Z"
+        type: string
+      filename:
+        example: product_20230101_120000_abcdef12.jpg
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      is_primary:
+        example: true
+        type: boolean
+      product_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      sort_order:
+        example: 0
+        type: integer
+      updated_at:
+        example: "2023-01-01T12:00:00Z"
+        type: string
+      url:
+        example: /uploads/products/product_20230101_120000_abcdef12.jpg
+        type: string
+    type: object
+  handlers.ReorderRequest:
+    description: Request to reorder product images
+    properties:
+      imageIds:
+        example:
+        - '[''550e8400-e29b-41d4-a716-446655440000'''
+        - '''550e8400-e29b-41d4-a716-446655440001'']'
+        items:
+          type: string
+        type: array
+    type: object
   requests.AddOrderItemRequest:
     properties:
       inventory_id:
-        type: string
-      notes:
-        type: string
-      price_id:
-        type: string
-      product_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
         type: string
       quantity:
+        example: 2
         type: integer
     type: object
   requests.CreateInventoryRequest:
@@ -24,9 +59,30 @@ definitions:
       size:
         type: string
     type: object
+  requests.CreateMultipleInventoriesRequest:
+    properties:
+      inventories:
+        items:
+          $ref: '#/definitions/requests.CreateInventoryRequest'
+        type: array
+    type: object
   requests.CreateOrderRequest:
     properties:
-      customer_id:
+      customer_email:
+        example: john@example.com
+        type: string
+      customer_name:
+        description: Customer information
+        example: John Doe
+        type: string
+      customer_phone:
+        example: "1234567890"
+        type: string
+      discount_amount:
+        example: 10.5
+        type: number
+      discount_reason:
+        example: Loyalty discount
         type: string
       items:
         items:
@@ -36,7 +92,21 @@ definitions:
         type: string
       payment_method:
         type: string
-      shipping_address_id:
+      shipping_address:
+        description: Shipping address information
+        example: 123 Main St
+        type: string
+      shipping_city:
+        example: Ho Chi Minh City
+        type: string
+      shipping_country:
+        example: Vietnam
+        type: string
+      shipping_district:
+        example: District 1
+        type: string
+      shipping_ward:
+        example: Ward 1
         type: string
       status:
         type: string
@@ -50,38 +120,6 @@ definitions:
       price:
         type: number
     type: object
-  requests.CreateProductRequest:
-    properties:
-      category:
-        type: string
-      description:
-        type: string
-      image_url:
-        type: string
-      inventories:
-        items:
-          $ref: '#/definitions/requests.InventoryRequest'
-        type: array
-      name:
-        type: string
-      prices:
-        items:
-          $ref: '#/definitions/requests.PriceRequest'
-        type: array
-      sku:
-        type: string
-    type: object
-  requests.InventoryRequest:
-    properties:
-      color:
-        type: string
-      location:
-        type: string
-      quantity:
-        type: integer
-      size:
-        type: string
-    type: object
   requests.LoginRequest:
     properties:
       password:
@@ -92,24 +130,11 @@ definitions:
   requests.OrderItemInfo:
     properties:
       inventory_id:
-        type: string
-      notes:
-        type: string
-      price_id:
-        type: string
-      product_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
         type: string
       quantity:
+        example: 2
         type: integer
-    type: object
-  requests.PriceRequest:
-    properties:
-      currency:
-        type: string
-      end_date:
-        type: string
-      price:
-        type: number
     type: object
   requests.RegisterRequest:
     properties:
@@ -131,23 +156,57 @@ definitions:
       size:
         type: string
     type: object
+  requests.UpdateOrderDetailsRequest:
+    properties:
+      customer_email:
+        example: john@example.com
+        type: string
+      customer_name:
+        description: Customer information
+        example: John Doe
+        type: string
+      customer_phone:
+        example: "1234567890"
+        type: string
+      discount_amount:
+        example: 10.5
+        type: number
+      discount_reason:
+        example: Free delivery
+        type: string
+      notes:
+        example: Please deliver in the morning
+        type: string
+      payment_method:
+        description: Order information
+        example: cash
+        type: string
+      shipping_address:
+        description: Shipping address information
+        example: 123 Main St
+        type: string
+      shipping_city:
+        example: Ho Chi Minh City
+        type: string
+      shipping_country:
+        example: Vietnam
+        type: string
+      shipping_district:
+        example: District 1
+        type: string
+      shipping_ward:
+        example: Ward 1
+        type: string
+    type: object
   requests.UpdateOrderItemRequest:
     properties:
-      notes:
-        type: string
       quantity:
+        example: 3
         type: integer
     type: object
   requests.UpdateOrderStatusRequest:
     properties:
       status:
-        type: string
-    type: object
-  requests.UpdatePaymentStatusRequest:
-    properties:
-      payment_reference:
-        type: string
-      payment_status:
         type: string
     type: object
   requests.UpdatePriceRequest:
@@ -159,17 +218,11 @@ definitions:
       price:
         type: number
     type: object
-  requests.UpdateProductRequest:
+  requests.UpdateShipmentRequest:
     properties:
-      category:
+      carrier:
         type: string
-      description:
-        type: string
-      image_url:
-        type: string
-      name:
-        type: string
-      sku:
+      tracking_number:
         type: string
     type: object
   responses.AddressResponse:
@@ -206,23 +259,23 @@ definitions:
       success:
         type: boolean
     type: object
-  responses.GuestDetailResponse:
+  responses.ImageResponse:
     properties:
-      addresses:
-        items:
-          $ref: '#/definitions/responses.AddressResponse'
-        type: array
       created_at:
         type: string
-      email:
+      filename:
         type: string
       id:
         type: string
-      name:
+      is_primary:
+        type: boolean
+      product_id:
         type: string
-      phone:
-        type: string
+      sort_order:
+        type: integer
       updated_at:
+        type: string
+      url:
         type: string
     type: object
   responses.InventoryResponse:
@@ -305,12 +358,16 @@ definitions:
         type: string
       customer_email:
         type: string
-      customer_id:
-        type: string
       customer_name:
         type: string
       customer_phone:
         type: string
+      discount_amount:
+        type: number
+      discount_reason:
+        type: string
+      final_total:
+        type: number
       id:
         type: string
       items:
@@ -321,13 +378,17 @@ definitions:
         type: string
       payment_method:
         type: string
-      payment_reference:
-        type: string
-      payment_status:
-        type: string
+      shipment:
+        $ref: '#/definitions/responses.ShipmentResponse'
       shipping_address:
         type: string
-      shipping_address_id:
+      shipping_city:
+        type: string
+      shipping_country:
+        type: string
+      shipping_district:
+        type: string
+      shipping_ward:
         type: string
       status:
         type: string
@@ -446,6 +507,10 @@ definitions:
         type: string
       image_url:
         type: string
+      images:
+        items:
+          $ref: '#/definitions/responses.ImageResponse'
+        type: array
       inventories:
         items:
           $ref: '#/definitions/responses.InventoryResponse'
@@ -491,6 +556,21 @@ definitions:
       user_id:
         type: string
       username:
+        type: string
+    type: object
+  responses.ShipmentResponse:
+    properties:
+      carrier:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      order_id:
+        type: string
+      tracking_number:
+        type: string
+      updated_at:
         type: string
     type: object
   responses.SuccessResponse:
@@ -561,6 +641,30 @@ definitions:
           $ref: '#/definitions/responses.UserDetailResponse'
         type: array
     type: object
+  services.ProductImageResult:
+    properties:
+      error:
+        type: string
+      filename:
+        type: string
+      imageID:
+        type: string
+      isPrimary:
+        type: boolean
+      message:
+        type: string
+      productID:
+        type: string
+      sortOrder:
+        type: integer
+      success:
+        type: boolean
+      url:
+        type: string
+    type: object
+externalDocs:
+  description: Find out more about Swagger
+  url: https://swagger.io/docs/
 host: localhost:3000
 info:
   contact:
@@ -639,41 +743,6 @@ paths:
       summary: Register a new user
       tags:
       - auth
-  /api/guests/{id}:
-    get:
-      consumes:
-      - application/json
-      description: Get a guest with their addresses
-      parameters:
-      - description: Guest ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/responses.GuestDetailResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-      security:
-      - ApiKeyAuth: []
-      summary: Get a guest with all relationships
-      tags:
-      - guests
   /api/health:
     get:
       consumes:
@@ -845,9 +914,9 @@ paths:
         in: query
         name: status
         type: string
-      - description: Filter by payment status
+      - description: Filter by creator ID
         in: query
-        name: payment_status
+        name: created_by
         type: string
       - description: Filter by start date (YYYY-MM-DD)
         in: query
@@ -946,7 +1015,8 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get a specific order with its items
+      description: Get a specific order with its items, shipment details, and customer
+        information
       parameters:
       - description: Order ID
         in: path
@@ -975,6 +1045,48 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Get an order by ID
+      tags:
+      - orders
+  /api/orders/{id}/details:
+    put:
+      consumes:
+      - application/json
+      description: Update the details of an order including payment details, shipping
+        address, and customer information
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Order details
+        in: body
+        name: details
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateOrderDetailsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.OrderResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Update order details
       tags:
       - orders
   /api/orders/{id}/items:
@@ -1018,23 +1130,23 @@ paths:
       summary: Add an item to an order
       tags:
       - orders
-  /api/orders/{id}/payment:
+  /api/orders/{id}/shipment:
     put:
       consumes:
       - application/json
-      description: Update the payment status of an order
+      description: Update the details of an order's shipment
       parameters:
       - description: Order ID
         in: path
         name: id
         required: true
         type: string
-      - description: Payment status
+      - description: Shipment details
         in: body
-        name: payment
+        name: shipment
         required: true
         schema:
-          $ref: '#/definitions/requests.UpdatePaymentStatusRequest'
+          $ref: '#/definitions/requests.UpdateShipmentRequest'
       produces:
       - application/json
       responses:
@@ -1056,7 +1168,7 @@ paths:
             $ref: '#/definitions/responses.ErrorResponse'
       security:
       - ApiKeyAuth: []
-      summary: Update an order's payment status
+      summary: Update shipment details
       tags:
       - orders
   /api/orders/{id}/status:
@@ -1215,28 +1327,55 @@ paths:
       - products
     post:
       consumes:
-      - application/json
-      description: Create a new product with optional inventories and prices
+      - multipart/form-data
+      description: Create a new product with optional inventories, prices, and images.
+        Images are stored at /uploads/products/ path.
       parameters:
-      - description: Product information
-        in: body
-        name: product
+      - description: Product name
+        in: formData
+        name: name
         required: true
-        schema:
-          $ref: '#/definitions/requests.CreateProductRequest'
+        type: string
+      - description: Product description
+        in: formData
+        name: description
+        type: string
+      - description: Product SKU (unique identifier)
+        in: formData
+        name: sku
+        required: true
+        type: string
+      - description: Product category
+        in: formData
+        name: category
+        required: true
+        type: string
+      - description: JSON array of inventory objects [{\
+        in: formData
+        name: inventories
+        type: string
+      - description: JSON array of price objects [{\
+        in: formData
+        name: prices
+        type: string
+      - description: Product images (can upload multiple, first image will be set
+          as primary)
+        in: formData
+        name: images
+        type: file
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
+        "201":
+          description: Returns the created product with all related data
           schema:
             $ref: '#/definitions/responses.ProductDetailResponse'
         "400":
-          description: Bad Request
+          description: Invalid request data
           schema:
             $ref: '#/definitions/responses.ErrorResponse'
         "500":
-          description: Internal Server Error
+          description: Server error
           schema:
             $ref: '#/definitions/responses.ErrorResponse'
       security:
@@ -1315,37 +1454,53 @@ paths:
       - products
     put:
       consumes:
-      - application/json
-      description: Update a product's information
+      - multipart/form-data
+      description: Update a product's information and optionally upload new images.
+        Images are stored at /uploads/products/ path.
       parameters:
       - description: Product ID
         in: path
         name: id
         required: true
         type: string
-      - description: Updated product information
-        in: body
-        name: product
-        required: true
-        schema:
-          $ref: '#/definitions/requests.UpdateProductRequest'
+      - description: Product name
+        in: formData
+        name: name
+        type: string
+      - description: Product description
+        in: formData
+        name: description
+        type: string
+      - description: Product SKU (unique identifier)
+        in: formData
+        name: sku
+        type: string
+      - description: Product category
+        in: formData
+        name: category
+        type: string
+      - description: Product images to add (can upload multiple, first image will
+          be set as primary if no existing images)
+        in: formData
+        name: images
+        type: file
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Returns the updated product with all related data
           schema:
             $ref: '#/definitions/responses.ProductDetailResponse'
         "400":
-          description: Bad Request
+          description: Invalid request data
           schema:
             $ref: '#/definitions/responses.ErrorResponse'
         "404":
-          description: Not Found
+          description: Product not found
           schema:
             $ref: '#/definitions/responses.ErrorResponse'
         "500":
-          description: Internal Server Error
+          description: Server error
           schema:
             $ref: '#/definitions/responses.ErrorResponse'
       security:
@@ -1353,18 +1508,246 @@ paths:
       summary: Update a product
       tags:
       - products
-  /api/products/{id}/inventories:
-    post:
+  /api/products/{id}/images:
+    get:
       consumes:
       - application/json
-      description: Add inventory information for a specific product
+      description: Get a list of all images associated with a product. Images are
+        stored at /uploads/products/ path.
       parameters:
       - description: Product ID
         in: path
         name: id
         required: true
         type: string
-      - description: Inventory information
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Returns an array of product images with URLs, filenames, and
+            metadata
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.SuccessResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/handlers.ProductImage'
+                  type: array
+              type: object
+        "400":
+          description: Invalid product ID format
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Product not found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Server error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get all images for a product
+      tags:
+      - product-images
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload a new image for a product. Images are stored at /uploads/products/
+        path.
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 'Image file (supported formats: JPG, PNG, GIF)'
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: 'Set as primary image (default: false)'
+        in: formData
+        name: is_primary
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Returns the uploaded image details including URL and metadata
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.ProductImage'
+              type: object
+        "400":
+          description: Invalid request or file format
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Product not found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Server error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Upload an image for a product
+      tags:
+      - product-images
+  /api/products/{id}/images/{imageId}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete an image associated with a product. This will remove both
+        the database record and the physical file.
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Image ID
+        in: path
+        name: imageId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Image deleted successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/services.ProductImageResult'
+              type: object
+        "400":
+          description: Invalid ID format
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Product or image not found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Server error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Delete a product image
+      tags:
+      - product-images
+  /api/products/{id}/images/{imageId}/primary:
+    put:
+      consumes:
+      - application/json
+      description: Set an existing image as the primary image for a product. The primary
+        image URL will be used as the main product image.
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Image ID
+        in: path
+        name: imageId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Returns the updated image details
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.ProductImage'
+              type: object
+        "400":
+          description: Invalid ID format
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Product or image not found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Server error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Set an image as the primary image for a product
+      tags:
+      - product-images
+  /api/products/{id}/images/reorder:
+    put:
+      consumes:
+      - application/json
+      description: Update the sort order of product images to control their display
+        order
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Array of image IDs in the desired display order
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.ReorderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Images reordered successfully
+          schema:
+            $ref: '#/definitions/responses.SuccessResponse'
+        "400":
+          description: Invalid request or ID format
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Product or image not found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Server error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Reorder product images
+      tags:
+      - product-images
+  /api/products/{id}/inventories:
+    post:
+      consumes:
+      - application/json
+      description: Add inventory information for a specific product. Can create a
+        single inventory or multiple inventories at once.
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Single inventory information
         in: body
         name: inventory
         required: true
@@ -1373,8 +1756,8 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
+        "201":
+          description: Created
           schema:
             $ref: '#/definitions/responses.InventoryResponse'
         "400":
@@ -1391,7 +1774,55 @@ paths:
             $ref: '#/definitions/responses.ErrorResponse'
       security:
       - ApiKeyAuth: []
-      summary: Create a new inventory for a product
+      summary: Create inventory for a product
+      tags:
+      - products
+  /api/products/{id}/inventories/batch:
+    post:
+      consumes:
+      - application/json
+      description: Add multiple inventory items for a specific product at once
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Multiple inventory information
+        in: body
+        name: inventories
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CreateMultipleInventoriesRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.SuccessResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.InventoryResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Create multiple inventories for a product
       tags:
       - products
   /api/products/{id}/prices:
@@ -1674,3 +2105,18 @@ securityDefinitions:
     name: Authorization
     type: apiKey
 swagger: "2.0"
+tags:
+- description: Product management endpoints
+  name: products
+- description: Product image management endpoints. Images are stored at /uploads/products/
+    and can be accessed via this path.
+  name: product-images
+x-upload-info:
+  allowed-types:
+  - image/jpeg
+  - image/png
+  - image/gif
+  - image/webp
+  base-path: /uploads
+  max-size: 10MB
+  products-path: /uploads/products

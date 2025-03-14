@@ -122,61 +122,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/guests/{id}": {
-            "get": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Get a guest with their addresses",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "guests"
-                ],
-                "summary": "Get a guest with all relationships",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Guest ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/responses.GuestDetailResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/responses.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/api/health": {
             "get": {
                 "description": "Check if the service is up and running",
@@ -457,8 +402,8 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter by payment status",
-                        "name": "payment_status",
+                        "description": "Filter by creator ID",
+                        "name": "created_by",
                         "in": "query"
                     },
                     {
@@ -669,7 +614,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Get a specific order with its items",
+                "description": "Get a specific order with its items, shipment details, and customer information",
                 "consumes": [
                     "application/json"
                 ],
@@ -770,6 +715,70 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/orders/{id}/details": {
+            "put": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Update the details of an order including payment details, shipping address, and customer information",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Update order details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Order details",
+                        "name": "details",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.UpdateOrderDetailsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.OrderResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/orders/{id}/items": {
             "post": {
                 "security": [
@@ -834,14 +843,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/orders/{id}/payment": {
+        "/api/orders/{id}/shipment": {
             "put": {
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Update the payment status of an order",
+                "description": "Update the details of an order's shipment",
                 "consumes": [
                     "application/json"
                 ],
@@ -851,7 +860,7 @@ const docTemplate = `{
                 "tags": [
                     "orders"
                 ],
-                "summary": "Update an order's payment status",
+                "summary": "Update shipment details",
                 "parameters": [
                     {
                         "type": "string",
@@ -861,12 +870,12 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Payment status",
-                        "name": "payment",
+                        "description": "Shipment details",
+                        "name": "shipment",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/requests.UpdatePaymentStatusRequest"
+                            "$ref": "#/definitions/requests.UpdateShipmentRequest"
                         }
                     }
                 ],
@@ -1027,9 +1036,9 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Create a new product with optional inventories and prices",
+                "description": "Create a new product with optional inventories, prices, and images. Images are stored at /uploads/products/ path.",
                 "consumes": [
-                    "application/json"
+                    "multipart/form-data"
                 ],
                 "produces": [
                     "application/json"
@@ -1040,30 +1049,66 @@ const docTemplate = `{
                 "summary": "Create a new product",
                 "parameters": [
                     {
-                        "description": "Product information",
-                        "name": "product",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/requests.CreateProductRequest"
-                        }
+                        "type": "string",
+                        "description": "Product name",
+                        "name": "name",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Product description",
+                        "name": "description",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Product SKU (unique identifier)",
+                        "name": "sku",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Product category",
+                        "name": "category",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "JSON array of inventory objects [{\\",
+                        "name": "inventories",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "JSON array of price objects [{\\",
+                        "name": "prices",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Product images (can upload multiple, first image will be set as primary)",
+                        "name": "images",
+                        "in": "formData"
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "201": {
+                        "description": "Returns the created product with all related data",
                         "schema": {
                             "$ref": "#/definitions/responses.ProductDetailResponse"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid request data",
                         "schema": {
                             "$ref": "#/definitions/responses.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Server error",
                         "schema": {
                             "$ref": "#/definitions/responses.ErrorResponse"
                         }
@@ -1365,9 +1410,9 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Update a product's information",
+                "description": "Update a product's information and optionally upload new images. Images are stored at /uploads/products/ path.",
                 "consumes": [
-                    "application/json"
+                    "multipart/form-data"
                 ],
                 "produces": [
                     "application/json"
@@ -1385,36 +1430,57 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Updated product information",
-                        "name": "product",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/requests.UpdateProductRequest"
-                        }
+                        "type": "string",
+                        "description": "Product name",
+                        "name": "name",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Product description",
+                        "name": "description",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Product SKU (unique identifier)",
+                        "name": "sku",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Product category",
+                        "name": "category",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Product images to add (can upload multiple, first image will be set as primary if no existing images)",
+                        "name": "images",
+                        "in": "formData"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Returns the updated product with all related data",
                         "schema": {
                             "$ref": "#/definitions/responses.ProductDetailResponse"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid request data",
                         "schema": {
                             "$ref": "#/definitions/responses.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Product not found",
                         "schema": {
                             "$ref": "#/definitions/responses.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Server error",
                         "schema": {
                             "$ref": "#/definitions/responses.ErrorResponse"
                         }
@@ -1475,14 +1541,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/products/{id}/inventories": {
-            "post": {
+        "/api/products/{id}/images": {
+            "get": {
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Add inventory information for a specific product",
+                "description": "Get a list of all images associated with a product. Images are stored at /uploads/products/ path.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1490,9 +1556,77 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "products"
+                    "product-images"
                 ],
-                "summary": "Create a new inventory for a product",
+                "summary": "Get all images for a product",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Product ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Returns an array of product images with URLs, filenames, and metadata",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/handlers.ProductImage"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid product ID format",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Product not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Upload a new image for a product. Images are stored at /uploads/products/ path.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "product-images"
+                ],
+                "summary": "Upload an image for a product",
                 "parameters": [
                     {
                         "type": "string",
@@ -1502,7 +1636,299 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Inventory information",
+                        "type": "file",
+                        "description": "Image file (supported formats: JPG, PNG, GIF)",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Set as primary image (default: false)",
+                        "name": "is_primary",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Returns the uploaded image details including URL and metadata",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/handlers.ProductImage"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or file format",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Product not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/products/{id}/images/reorder": {
+            "put": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Update the sort order of product images to control their display order",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "product-images"
+                ],
+                "summary": "Reorder product images",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Product ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Array of image IDs in the desired display order",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ReorderRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Images reordered successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or ID format",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Product or image not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/products/{id}/images/{imageId}": {
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Delete an image associated with a product. This will remove both the database record and the physical file.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "product-images"
+                ],
+                "summary": "Delete a product image",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Product ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Image ID",
+                        "name": "imageId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Image deleted successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/services.ProductImageResult"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid ID format",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Product or image not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/products/{id}/images/{imageId}/primary": {
+            "put": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Set an existing image as the primary image for a product. The primary image URL will be used as the main product image.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "product-images"
+                ],
+                "summary": "Set an image as the primary image for a product",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Product ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Image ID",
+                        "name": "imageId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Returns the updated image details",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/handlers.ProductImage"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid ID format",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Product or image not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/products/{id}/inventories": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Add inventory information for a specific product. Can create a single inventory or multiple inventories at once.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "products"
+                ],
+                "summary": "Create inventory for a product",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Product ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Single inventory information",
                         "name": "inventory",
                         "in": "body",
                         "required": true,
@@ -1512,10 +1938,89 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "201": {
+                        "description": "Created",
                         "schema": {
                             "$ref": "#/definitions/responses.InventoryResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/products/{id}/inventories/batch": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Add multiple inventory items for a specific product at once",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "products"
+                ],
+                "summary": "Create multiple inventories for a product",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Product ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Multiple inventory information",
+                        "name": "inventories",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.CreateMultipleInventoriesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/responses.InventoryResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
@@ -1732,23 +2237,70 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "handlers.ProductImage": {
+            "description": "Product image information",
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string",
+                    "example": "2023-01-01T12:00:00Z"
+                },
+                "filename": {
+                    "type": "string",
+                    "example": "product_20230101_120000_abcdef12.jpg"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "is_primary": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "product_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "sort_order": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2023-01-01T12:00:00Z"
+                },
+                "url": {
+                    "type": "string",
+                    "example": "/uploads/products/product_20230101_120000_abcdef12.jpg"
+                }
+            }
+        },
+        "handlers.ReorderRequest": {
+            "description": "Request to reorder product images",
+            "type": "object",
+            "properties": {
+                "imageIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "['550e8400-e29b-41d4-a716-446655440000'",
+                        "'550e8400-e29b-41d4-a716-446655440001']"
+                    ]
+                }
+            }
+        },
         "requests.AddOrderItemRequest": {
             "type": "object",
             "properties": {
                 "inventory_id": {
-                    "type": "string"
-                },
-                "notes": {
-                    "type": "string"
-                },
-                "price_id": {
-                    "type": "string"
-                },
-                "product_id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
                 },
                 "quantity": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 2
                 }
             }
         },
@@ -1769,11 +2321,40 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.CreateMultipleInventoriesRequest": {
+            "type": "object",
+            "properties": {
+                "inventories": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/requests.CreateInventoryRequest"
+                    }
+                }
+            }
+        },
         "requests.CreateOrderRequest": {
             "type": "object",
             "properties": {
-                "customer_id": {
-                    "type": "string"
+                "customer_email": {
+                    "type": "string",
+                    "example": "john@example.com"
+                },
+                "customer_name": {
+                    "description": "Customer information",
+                    "type": "string",
+                    "example": "John Doe"
+                },
+                "customer_phone": {
+                    "type": "string",
+                    "example": "1234567890"
+                },
+                "discount_amount": {
+                    "type": "number",
+                    "example": 10.5
+                },
+                "discount_reason": {
+                    "type": "string",
+                    "example": "Loyalty discount"
                 },
                 "items": {
                     "type": "array",
@@ -1787,8 +2368,26 @@ const docTemplate = `{
                 "payment_method": {
                     "type": "string"
                 },
-                "shipping_address_id": {
-                    "type": "string"
+                "shipping_address": {
+                    "description": "Shipping address information",
+                    "type": "string",
+                    "example": "123 Main St"
+                },
+                "shipping_city": {
+                    "type": "string",
+                    "example": "Ho Chi Minh City"
+                },
+                "shipping_country": {
+                    "type": "string",
+                    "example": "Vietnam"
+                },
+                "shipping_district": {
+                    "type": "string",
+                    "example": "District 1"
+                },
+                "shipping_ward": {
+                    "type": "string",
+                    "example": "Ward 1"
                 },
                 "status": {
                     "type": "string"
@@ -1809,55 +2408,6 @@ const docTemplate = `{
                 }
             }
         },
-        "requests.CreateProductRequest": {
-            "type": "object",
-            "properties": {
-                "category": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "image_url": {
-                    "type": "string"
-                },
-                "inventories": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/requests.InventoryRequest"
-                    }
-                },
-                "name": {
-                    "type": "string"
-                },
-                "prices": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/requests.PriceRequest"
-                    }
-                },
-                "sku": {
-                    "type": "string"
-                }
-            }
-        },
-        "requests.InventoryRequest": {
-            "type": "object",
-            "properties": {
-                "color": {
-                    "type": "string"
-                },
-                "location": {
-                    "type": "string"
-                },
-                "quantity": {
-                    "type": "integer"
-                },
-                "size": {
-                    "type": "string"
-                }
-            }
-        },
         "requests.LoginRequest": {
             "type": "object",
             "properties": {
@@ -1873,33 +2423,12 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "inventory_id": {
-                    "type": "string"
-                },
-                "notes": {
-                    "type": "string"
-                },
-                "price_id": {
-                    "type": "string"
-                },
-                "product_id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
                 },
                 "quantity": {
-                    "type": "integer"
-                }
-            }
-        },
-        "requests.PriceRequest": {
-            "type": "object",
-            "properties": {
-                "currency": {
-                    "type": "string"
-                },
-                "end_date": {
-                    "type": "string"
-                },
-                "price": {
-                    "type": "number"
+                    "type": "integer",
+                    "example": 2
                 }
             }
         },
@@ -1934,14 +2463,68 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.UpdateOrderDetailsRequest": {
+            "type": "object",
+            "properties": {
+                "customer_email": {
+                    "type": "string",
+                    "example": "john@example.com"
+                },
+                "customer_name": {
+                    "description": "Customer information",
+                    "type": "string",
+                    "example": "John Doe"
+                },
+                "customer_phone": {
+                    "type": "string",
+                    "example": "1234567890"
+                },
+                "discount_amount": {
+                    "type": "number",
+                    "example": 10.5
+                },
+                "discount_reason": {
+                    "type": "string",
+                    "example": "Free delivery"
+                },
+                "notes": {
+                    "type": "string",
+                    "example": "Please deliver in the morning"
+                },
+                "payment_method": {
+                    "description": "Order information",
+                    "type": "string",
+                    "example": "cash"
+                },
+                "shipping_address": {
+                    "description": "Shipping address information",
+                    "type": "string",
+                    "example": "123 Main St"
+                },
+                "shipping_city": {
+                    "type": "string",
+                    "example": "Ho Chi Minh City"
+                },
+                "shipping_country": {
+                    "type": "string",
+                    "example": "Vietnam"
+                },
+                "shipping_district": {
+                    "type": "string",
+                    "example": "District 1"
+                },
+                "shipping_ward": {
+                    "type": "string",
+                    "example": "Ward 1"
+                }
+            }
+        },
         "requests.UpdateOrderItemRequest": {
             "type": "object",
             "properties": {
-                "notes": {
-                    "type": "string"
-                },
                 "quantity": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 3
                 }
             }
         },
@@ -1949,17 +2532,6 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "requests.UpdatePaymentStatusRequest": {
-            "type": "object",
-            "properties": {
-                "payment_reference": {
-                    "type": "string"
-                },
-                "payment_status": {
                     "type": "string"
                 }
             }
@@ -1978,22 +2550,13 @@ const docTemplate = `{
                 }
             }
         },
-        "requests.UpdateProductRequest": {
+        "requests.UpdateShipmentRequest": {
             "type": "object",
             "properties": {
-                "category": {
+                "carrier": {
                     "type": "string"
                 },
-                "description": {
-                    "type": "string"
-                },
-                "image_url": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "sku": {
+                "tracking_number": {
                     "type": "string"
                 }
             }
@@ -2050,31 +2613,31 @@ const docTemplate = `{
                 }
             }
         },
-        "responses.GuestDetailResponse": {
+        "responses.ImageResponse": {
             "type": "object",
             "properties": {
-                "addresses": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/responses.AddressResponse"
-                    }
-                },
                 "created_at": {
                     "type": "string"
                 },
-                "email": {
+                "filename": {
                     "type": "string"
                 },
                 "id": {
                     "type": "string"
                 },
-                "name": {
+                "is_primary": {
+                    "type": "boolean"
+                },
+                "product_id": {
                     "type": "string"
                 },
-                "phone": {
-                    "type": "string"
+                "sort_order": {
+                    "type": "integer"
                 },
                 "updated_at": {
+                    "type": "string"
+                },
+                "url": {
                     "type": "string"
                 }
             }
@@ -2201,14 +2764,20 @@ const docTemplate = `{
                 "customer_email": {
                     "type": "string"
                 },
-                "customer_id": {
-                    "type": "string"
-                },
                 "customer_name": {
                     "type": "string"
                 },
                 "customer_phone": {
                     "type": "string"
+                },
+                "discount_amount": {
+                    "type": "number"
+                },
+                "discount_reason": {
+                    "type": "string"
+                },
+                "final_total": {
+                    "type": "number"
                 },
                 "id": {
                     "type": "string"
@@ -2225,16 +2794,22 @@ const docTemplate = `{
                 "payment_method": {
                     "type": "string"
                 },
-                "payment_reference": {
-                    "type": "string"
-                },
-                "payment_status": {
-                    "type": "string"
+                "shipment": {
+                    "$ref": "#/definitions/responses.ShipmentResponse"
                 },
                 "shipping_address": {
                     "type": "string"
                 },
-                "shipping_address_id": {
+                "shipping_city": {
+                    "type": "string"
+                },
+                "shipping_country": {
+                    "type": "string"
+                },
+                "shipping_district": {
+                    "type": "string"
+                },
+                "shipping_ward": {
                     "type": "string"
                 },
                 "status": {
@@ -2416,6 +2991,12 @@ const docTemplate = `{
                 "image_url": {
                     "type": "string"
                 },
+                "images": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.ImageResponse"
+                    }
+                },
                 "inventories": {
                     "type": "array",
                     "items": {
@@ -2484,6 +3065,29 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.ShipmentResponse": {
+            "type": "object",
+            "properties": {
+                "carrier": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "order_id": {
+                    "type": "string"
+                },
+                "tracking_number": {
+                    "type": "string"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }
@@ -2591,6 +3195,38 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "services.ProductImageResult": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "filename": {
+                    "type": "string"
+                },
+                "imageID": {
+                    "type": "string"
+                },
+                "isPrimary": {
+                    "type": "boolean"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "productID": {
+                    "type": "string"
+                },
+                "sortOrder": {
+                    "type": "integer"
+                },
+                "success": {
+                    "type": "boolean"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
         }
     },
     "securityDefinitions": {
@@ -2600,6 +3236,31 @@ const docTemplate = `{
             "name": "Authorization",
             "in": "header"
         }
+    },
+    "tags": [
+        {
+            "description": "Product management endpoints",
+            "name": "products"
+        },
+        {
+            "description": "Product image management endpoints. Images are stored at /uploads/products/ and can be accessed via this path.",
+            "name": "product-images"
+        }
+    ],
+    "externalDocs": {
+        "description": "Find out more about Swagger",
+        "url": "https://swagger.io/docs/"
+    },
+    "x-upload-info": {
+        "allowed-types": [
+            "image/jpeg",
+            "image/png",
+            "image/gif",
+            "image/webp"
+        ],
+        "base-path": "/uploads",
+        "max-size": "10MB",
+        "products-path": "/uploads/products"
     }
 }`
 

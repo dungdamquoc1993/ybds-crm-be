@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/google/uuid"
 	"github.com/ybds/internal/models/order"
@@ -31,13 +32,16 @@ func NewOrderService(db *gorm.DB, productService *ProductService, userService *U
 
 // OrderResult represents the result of an order operation
 type OrderResult struct {
-	Success   bool
-	Message   string
-	Error     string
-	OrderID   uuid.UUID
-	Status    order.OrderStatus
-	Total     float64
-	CreatedBy *uuid.UUID
+	Success        bool
+	Message        string
+	Error          string
+	OrderID        uuid.UUID
+	Status         order.OrderStatus
+	Total          float64
+	DiscountAmount float64
+	DiscountReason string
+	FinalTotal     float64
+	CreatedBy      *uuid.UUID
 }
 
 // OrderItemInfo represents information about an order item
@@ -56,26 +60,29 @@ func (s *OrderService) GetAllOrders(page, pageSize int, filters map[string]inter
 	return s.OrderRepo.GetAllOrders(page, pageSize, filters)
 }
 
-// GetOrdersByCustomer retrieves all orders for a customer
-func (s *OrderService) GetOrdersByCustomer(customerID uuid.UUID, customerType order.CustomerType) ([]order.Order, error) {
-	return s.OrderRepo.GetOrdersByCustomer(customerID, customerType)
-}
-
 // CreateOrder creates a new order
 func (s *OrderService) CreateOrder(
-	customerID uuid.UUID,
-	customerType order.CustomerType,
 	paymentMethod order.PaymentMethod,
 	items []OrderItemInfo,
+	discountAmount float64,
+	discountReason string,
 	createdByID *uuid.UUID,
+	shippingAddress string,
+	shippingWard string,
+	shippingDistrict string,
+	shippingCity string,
+	shippingCountry string,
+	customerName string,
+	customerEmail string,
+	customerPhone string,
 ) (*OrderResult, error) {
 	// Validate input
-	if customerID == uuid.Nil {
+	if createdByID == nil {
 		return &OrderResult{
 			Success: false,
 			Message: "Order creation failed",
-			Error:   "Customer ID is required",
-		}, fmt.Errorf("customer ID is required")
+			Error:   "Created by ID is required",
+		}, fmt.Errorf("created by ID is required")
 	}
 
 	if len(items) == 0 {
@@ -119,13 +126,22 @@ func (s *OrderService) CreateOrder(
 
 	// Create order
 	o := &order.Order{
-		CustomerID:    customerID,
-		CustomerType:  customerType,
-		PaymentMethod: paymentMethod,
-		PaymentStatus: "pending",
-		OrderStatus:   order.OrderPendingConfirmation,
-		TotalAmount:   0,
-		PaidAmount:    0,
+		PaymentMethod:    paymentMethod,
+		OrderStatus:      order.OrderPendingConfirmation,
+		TotalAmount:      0,
+		DiscountAmount:   discountAmount,
+		DiscountReason:   discountReason,
+		FinalTotalAmount: 0, // Will be calculated later
+		// Shipping address fields
+		ShippingAddress:  shippingAddress,
+		ShippingWard:     shippingWard,
+		ShippingDistrict: shippingDistrict,
+		ShippingCity:     shippingCity,
+		ShippingCountry:  shippingCountry,
+		// Customer information
+		CustomerName:  customerName,
+		CustomerEmail: customerEmail,
+		CustomerPhone: customerPhone,
 	}
 
 	// Set created by if provided
@@ -190,6 +206,13 @@ func (s *OrderService) CreateOrder(
 
 	// Update order total
 	o.TotalAmount = totalAmount
+
+	// Calculate final total amount (after discount)
+	o.FinalTotalAmount = totalAmount - discountAmount
+	if o.FinalTotalAmount < 0 {
+		o.FinalTotalAmount = 0 // Ensure final amount is not negative
+	}
+
 	if err := tx.Save(o).Error; err != nil {
 		tx.Rollback()
 		return &OrderResult{
@@ -208,29 +231,42 @@ func (s *OrderService) CreateOrder(
 		}, err
 	}
 
+	// Create a default shipment for the order
+	shipment := &order.Shipment{
+		OrderID: o.ID,
+		// TrackingNumber and Carrier will be empty initially
+	}
+	if err := s.DB.Create(shipment).Error; err != nil {
+		// Log the error but don't fail the order creation
+		log.Printf("Failed to create default shipment for order %s: %v", o.ID, err)
+	}
+
 	// Send notification
 	if s.NotificationService != nil {
 		metadata := map[string]interface{}{
 			"order_id":        o.ID.String(),
-			"customer_id":     customerID.String(),
-			"customer_type":   string(customerType),
+			"created_by":      createdByID.String(),
 			"payment_method":  string(paymentMethod),
-			"payment_status":  "pending",
 			"order_status":    string(o.OrderStatus),
 			"total_amount":    totalAmount,
+			"discount_amount": discountAmount,
+			"final_amount":    o.FinalTotalAmount,
 			"number_of_items": len(items),
 		}
 
-		s.NotificationService.CreateOrderNotification(o.ID, customerID, "created", metadata)
+		s.NotificationService.CreateOrderNotification(o.ID, *createdByID, "created", metadata)
 	}
 
 	return &OrderResult{
-		Success:   true,
-		Message:   "Order created successfully",
-		OrderID:   o.ID,
-		Status:    o.OrderStatus,
-		Total:     totalAmount,
-		CreatedBy: createdByID,
+		Success:        true,
+		Message:        "Order created successfully",
+		OrderID:        o.ID,
+		Status:         o.OrderStatus,
+		Total:          totalAmount,
+		DiscountAmount: discountAmount,
+		DiscountReason: discountReason,
+		FinalTotal:     o.FinalTotalAmount,
+		CreatedBy:      createdByID,
 	}, nil
 }
 
@@ -299,11 +335,10 @@ func (s *OrderService) UpdateOrderStatus(id uuid.UUID, status order.OrderStatus)
 	// Send notification
 	if s.NotificationService != nil {
 		metadata := map[string]interface{}{
-			"order_id":      o.ID.String(),
-			"customer_id":   o.CustomerID.String(),
-			"customer_type": string(o.CustomerType),
-			"old_status":    string(oldStatus),
-			"new_status":    string(status),
+			"order_id":   o.ID.String(),
+			"created_by": o.CreatedBy.String(),
+			"old_status": string(oldStatus),
+			"new_status": string(status),
 		}
 
 		var event string
@@ -320,7 +355,7 @@ func (s *OrderService) UpdateOrderStatus(id uuid.UUID, status order.OrderStatus)
 			event = "updated"
 		}
 
-		s.NotificationService.CreateOrderNotification(o.ID, o.CustomerID, event, metadata)
+		s.NotificationService.CreateOrderNotification(o.ID, *o.CreatedBy, event, metadata)
 	}
 
 	return &OrderResult{
@@ -342,23 +377,30 @@ func (s *OrderService) handleInventoryForStatusChange(tx *gorm.DB, o *order.Orde
 	}
 
 	// Handle inventory changes based on status transition
-	if oldStatus == order.OrderPendingConfirmation && newStatus == order.OrderConfirmed {
-		// When order is confirmed, reserve inventory
+	switch {
+	// When transitioning to packing status, reduce inventory
+	case newStatus == order.OrderPacking:
 		for _, item := range items {
 			if err := s.ProductService.ReserveInventory(item.InventoryID, item.Quantity); err != nil {
 				return err
 			}
 		}
-	} else if oldStatus == order.OrderConfirmed && newStatus == order.OrderCanceled {
-		// When order is cancelled after confirmation, release inventory
+
+	// When transitioning to returned status, increase inventory
+	case newStatus == order.OrderReturned:
 		for _, item := range items {
 			if err := s.ProductService.ReleaseInventory(item.InventoryID, item.Quantity); err != nil {
 				return err
 			}
 		}
-	} else if oldStatus == order.OrderPendingConfirmation && newStatus == order.OrderCanceled {
-		// When order is cancelled before confirmation, no inventory change needed
-		return nil
+
+	// When canceling an order that was in packing or shipped status, increase inventory
+	case newStatus == order.OrderCanceled && (oldStatus == order.OrderPacking || oldStatus == order.OrderShipped):
+		for _, item := range items {
+			if err := s.ProductService.ReleaseInventory(item.InventoryID, item.Quantity); err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
@@ -388,6 +430,7 @@ func isValidStatusTransition(oldStatus, newStatus order.OrderStatus) bool {
 		order.OrderShipped: {
 			order.OrderDelivered,
 			order.OrderReturnRequested,
+			order.OrderCanceled,
 		},
 		order.OrderDelivered: {
 			order.OrderReturnRequested,
@@ -412,85 +455,7 @@ func isValidStatusTransition(oldStatus, newStatus order.OrderStatus) bool {
 	return false
 }
 
-// UpdatePaymentStatus updates the payment status of an order
-func (s *OrderService) UpdatePaymentStatus(id uuid.UUID, status string, paidAmount *float64) (*OrderResult, error) {
-	// Get the order
-	o, err := s.OrderRepo.GetOrderByID(id)
-	if err != nil {
-		return &OrderResult{
-			Success: false,
-			Message: "Payment status update failed",
-			Error:   "Order not found",
-		}, err
-	}
-
-	// Start transaction
-	tx := s.DB.Begin()
-	if tx.Error != nil {
-		return &OrderResult{
-			Success: false,
-			Message: "Payment status update failed",
-			Error:   "Database transaction error",
-		}, tx.Error
-	}
-
-	// Update payment status
-	if err := tx.Model(o).Update("payment_status", status).Error; err != nil {
-		tx.Rollback()
-		return &OrderResult{
-			Success: false,
-			Message: "Payment status update failed",
-			Error:   "Error updating payment status",
-		}, err
-	}
-
-	// Update paid amount if provided
-	if paidAmount != nil {
-		if err := tx.Model(o).Update("paid_amount", *paidAmount).Error; err != nil {
-			tx.Rollback()
-			return &OrderResult{
-				Success: false,
-				Message: "Payment status update failed",
-				Error:   "Error updating paid amount",
-			}, err
-		}
-	}
-
-	// Commit transaction
-	if err := tx.Commit().Error; err != nil {
-		return &OrderResult{
-			Success: false,
-			Message: "Payment status update failed",
-			Error:   "Error committing transaction",
-		}, err
-	}
-
-	// Send notification
-	if s.NotificationService != nil {
-		metadata := map[string]interface{}{
-			"order_id":       o.ID.String(),
-			"customer_id":    o.CustomerID.String(),
-			"customer_type":  string(o.CustomerType),
-			"payment_status": status,
-		}
-		if paidAmount != nil {
-			metadata["paid_amount"] = *paidAmount
-		}
-
-		s.NotificationService.CreateOrderNotification(o.ID, o.CustomerID, "payment_updated", metadata)
-	}
-
-	return &OrderResult{
-		Success:   true,
-		Message:   "Payment status updated successfully",
-		OrderID:   o.ID,
-		Status:    o.OrderStatus,
-		Total:     o.TotalAmount,
-		CreatedBy: o.CreatedBy,
-	}, nil
-}
-
-// DeleteOrder deletes an order by ID
+// DeleteOrder deletes an order
 func (s *OrderService) DeleteOrder(id uuid.UUID) (*OrderResult, error) {
 	// Get the order
 	o, err := s.OrderRepo.GetOrderByID(id)
@@ -625,19 +590,18 @@ func (s *OrderService) CreateShipment(orderID uuid.UUID, trackingNumber, carrier
 	if s.NotificationService != nil {
 		metadata := map[string]interface{}{
 			"order_id":        o.ID.String(),
-			"customer_id":     o.CustomerID.String(),
-			"customer_type":   string(o.CustomerType),
+			"created_by":      o.CreatedBy.String(),
 			"tracking_number": trackingNumber,
 			"carrier":         carrier,
 		}
 
-		s.NotificationService.CreateOrderNotification(o.ID, o.CustomerID, "shipment_created", metadata)
+		s.NotificationService.CreateOrderNotification(o.ID, *o.CreatedBy, "shipment_created", metadata)
 	}
 
 	return nil
 }
 
-// UpdateShipment updates a shipment
+// UpdateShipment updates the shipment details for an order
 func (s *OrderService) UpdateShipment(orderID uuid.UUID, trackingNumber, carrier string) error {
 	// Get the shipment
 	shipment, err := s.OrderRepo.GetShipmentByOrderID(orderID)
@@ -662,16 +626,15 @@ func (s *OrderService) UpdateShipment(orderID uuid.UUID, trackingNumber, carrier
 	if s.NotificationService != nil {
 		// Get the order
 		o, err := s.OrderRepo.GetOrderByID(orderID)
-		if err == nil {
+		if err == nil && o.CreatedBy != nil {
 			metadata := map[string]interface{}{
 				"order_id":        o.ID.String(),
-				"customer_id":     o.CustomerID.String(),
-				"customer_type":   string(o.CustomerType),
+				"created_by":      o.CreatedBy.String(),
 				"tracking_number": shipment.TrackingNumber,
 				"carrier":         shipment.Carrier,
 			}
 
-			s.NotificationService.CreateOrderNotification(o.ID, o.CustomerID, "shipment_updated", metadata)
+			s.NotificationService.CreateOrderNotification(o.ID, *o.CreatedBy, "shipment_updated", metadata)
 		}
 	}
 
@@ -853,4 +816,111 @@ func (s *OrderService) DeleteOrderItem(id uuid.UUID) error {
 
 	// Commit transaction
 	return tx.Commit().Error
+}
+
+// UpdateOrderDetails updates the details of an order
+func (s *OrderService) UpdateOrderDetails(
+	id uuid.UUID,
+	notes string,
+	paymentMethod order.PaymentMethod,
+	discountAmount float64,
+	discountReason string,
+	shippingAddress string,
+	shippingWard string,
+	shippingDistrict string,
+	shippingCity string,
+	shippingCountry string,
+	customerName string,
+	customerEmail string,
+	customerPhone string,
+) (*OrderResult, error) {
+	// Get the order
+	o, err := s.OrderRepo.GetOrderByID(id)
+	if err != nil {
+		return &OrderResult{
+			Success: false,
+			Message: "Order details update failed",
+			Error:   "Order not found",
+		}, err
+	}
+
+	// Update fields if provided
+	if paymentMethod != "" {
+		o.PaymentMethod = paymentMethod
+	}
+
+	// Update discount if provided
+	if discountAmount >= 0 {
+		o.DiscountAmount = discountAmount
+		o.DiscountReason = discountReason
+		// Recalculate final total
+		o.FinalTotalAmount = o.TotalAmount - o.DiscountAmount
+		if o.FinalTotalAmount < 0 {
+			o.FinalTotalAmount = 0 // Ensure final amount is not negative
+		}
+	}
+
+	// Update shipping address if provided
+	if shippingAddress != "" {
+		o.ShippingAddress = shippingAddress
+	}
+	if shippingWard != "" {
+		o.ShippingWard = shippingWard
+	}
+	if shippingDistrict != "" {
+		o.ShippingDistrict = shippingDistrict
+	}
+	if shippingCity != "" {
+		o.ShippingCity = shippingCity
+	}
+	if shippingCountry != "" {
+		o.ShippingCountry = shippingCountry
+	}
+
+	// Update customer information if provided
+	if customerName != "" {
+		o.CustomerName = customerName
+	}
+	if customerEmail != "" {
+		o.CustomerEmail = customerEmail
+	}
+	if customerPhone != "" {
+		o.CustomerPhone = customerPhone
+	}
+
+	// Save the order
+	if err := s.OrderRepo.UpdateOrder(o); err != nil {
+		return &OrderResult{
+			Success: false,
+			Message: "Order details update failed",
+			Error:   "Error updating order details",
+		}, err
+	}
+
+	// Send notification
+	if s.NotificationService != nil {
+		metadata := map[string]interface{}{
+			"order_id":        o.ID.String(),
+			"payment_method":  string(o.PaymentMethod),
+			"discount_amount": o.DiscountAmount,
+			"discount_reason": o.DiscountReason,
+			"final_amount":    o.FinalTotalAmount,
+		}
+
+		if o.CreatedBy != nil {
+			s.NotificationService.CreateOrderNotification(o.ID, *o.CreatedBy, "details_updated", metadata)
+		}
+	}
+
+	return &OrderResult{
+		Success:        true,
+		Message:        "Order details updated successfully",
+		OrderID:        o.ID,
+		Status:         o.OrderStatus,
+		Total:          o.TotalAmount,
+		DiscountAmount: o.DiscountAmount,
+		DiscountReason: o.DiscountReason,
+		FinalTotal:     o.FinalTotalAmount,
+		CreatedBy:      o.CreatedBy,
+	}, nil
 }

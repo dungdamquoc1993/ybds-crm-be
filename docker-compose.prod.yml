@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ybds-app
+    ports:
+      - "3000:3000"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - DB_NAME=${DB_NAME}
+      - DB_SSL_MODE=require
+      - SERVER_PORT=3000
+      - ENV=production
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRY=24h
+      - UPLOAD_DIR=/app/uploads
+      - MAX_UPLOAD_SIZE=10
+    volumes:
+      - uploads-data:/app/uploads
+    depends_on:
+      - postgres
+    restart: always
+    networks:
+      - ybds-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: ybds-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASS}
+      - POSTGRES_DB=${DB_NAME}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: always
+    networks:
+      - ybds-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+
+  # Optional: Add a backup service for the uploads directory
+  backup:
+    image: alpine:latest
+    container_name: ybds-backup
+    volumes:
+      - uploads-data:/data/uploads
+      - ./backups:/backups
+    command: |
+      sh -c "
+        apk add --no-cache tar gzip
+        mkdir -p /backups
+        tar -czf /backups/uploads-backup-\$(date +%Y%m%d-%H%M%S).tar.gz -C /data uploads
+        find /backups -name 'uploads-backup-*.tar.gz' -mtime +7 -delete
+      "
+    restart: always
+    depends_on:
+      - app
+    networks:
+      - ybds-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 128M
+
+volumes:
+  postgres-data:
+    driver: local
+  uploads-data:
+    driver: local
+
+networks:
+  ybds-network:
+    driver: bridge 

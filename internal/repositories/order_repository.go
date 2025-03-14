@@ -38,16 +38,14 @@ func (r *OrderRepository) GetAllOrders(page, pageSize int, filters map[string]in
 	// Apply filters
 	for key, value := range filters {
 		switch key {
-		case "customer_id":
-			query = query.Where("customer_id = ?", value)
-		case "customer_type":
-			query = query.Where("customer_type = ?", value)
 		case "payment_method":
 			query = query.Where("payment_method = ?", value)
 		case "payment_status":
 			query = query.Where("payment_status = ?", value)
 		case "order_status":
 			query = query.Where("order_status = ?", value)
+		case "created_by":
+			query = query.Where("created_by = ?", value)
 		}
 	}
 
@@ -64,16 +62,6 @@ func (r *OrderRepository) GetAllOrders(page, pageSize int, filters map[string]in
 		Find(&orders).Error
 
 	return orders, total, err
-}
-
-// GetOrdersByCustomer retrieves all orders for a customer
-func (r *OrderRepository) GetOrdersByCustomer(customerID uuid.UUID, customerType order.CustomerType) ([]order.Order, error) {
-	var orders []order.Order
-	err := r.db.Where("customer_id = ? AND customer_type = ?", customerID, customerType).
-		Preload("Items").
-		Preload("Shipment").
-		Find(&orders).Error
-	return orders, err
 }
 
 // CreateOrder creates a new order
@@ -94,11 +82,6 @@ func (r *OrderRepository) DeleteOrder(id uuid.UUID) error {
 // UpdateOrderStatus updates the status of an order
 func (r *OrderRepository) UpdateOrderStatus(id uuid.UUID, status order.OrderStatus) error {
 	return r.db.Model(&order.Order{}).Where("id = ?", id).Update("order_status", status).Error
-}
-
-// UpdatePaymentStatus updates the payment status of an order
-func (r *OrderRepository) UpdatePaymentStatus(id uuid.UUID, status string) error {
-	return r.db.Model(&order.Order{}).Where("id = ?", id).Update("payment_status", status).Error
 }
 
 // GetOrderItemByID retrieves an order item by ID

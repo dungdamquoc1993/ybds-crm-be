@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"time"
 
+	"mime/multipart"
+
 	"github.com/google/uuid"
 	"github.com/ybds/internal/models/product"
 	"github.com/ybds/internal/repositories"
+	"github.com/ybds/pkg/upload"
 	"gorm.io/gorm"
 )
 
@@ -14,15 +17,19 @@ import (
 type ProductService struct {
 	DB                  *gorm.DB
 	ProductRepo         *repositories.ProductRepository
+	ProductImageRepo    *repositories.ProductImageRepository
 	NotificationService *NotificationService
+	UploadService       *upload.Service
 }
 
 // NewProductService creates a new instance of ProductService
-func NewProductService(db *gorm.DB, notificationService *NotificationService) *ProductService {
+func NewProductService(db *gorm.DB, notificationService *NotificationService, uploadService *upload.Service) *ProductService {
 	return &ProductService{
 		DB:                  db,
 		ProductRepo:         repositories.NewProductRepository(db),
+		ProductImageRepo:    repositories.NewProductImageRepository(db),
 		NotificationService: notificationService,
+		UploadService:       uploadService,
 	}
 }
 
@@ -641,4 +648,348 @@ func (s *ProductService) ReleaseInventory(inventoryID uuid.UUID, quantity int) e
 
 	inventory.Quantity += quantity
 	return s.ProductRepo.UpdateInventory(inventory)
+}
+
+// ProductImageResult represents the result of a product image operation
+type ProductImageResult struct {
+	Success   bool
+	Message   string
+	Error     string
+	ImageID   uuid.UUID
+	ProductID uuid.UUID
+	URL       string
+	Filename  string
+	IsPrimary bool
+	SortOrder int
+}
+
+// GetProductImages retrieves all images for a product
+func (s *ProductService) GetProductImages(productID uuid.UUID) ([]product.ProductImage, error) {
+	return s.ProductImageRepo.GetImagesByProductID(productID)
+}
+
+// GetProductImageByID retrieves an image by ID
+func (s *ProductService) GetProductImageByID(id uuid.UUID) (*product.ProductImage, error) {
+	return s.ProductImageRepo.GetImageByID(id)
+}
+
+// UploadProductImage uploads a new image for a product
+func (s *ProductService) UploadProductImage(productID uuid.UUID, fileHeader *multipart.FileHeader, isPrimary bool) (*ProductImageResult, error) {
+	// Validate input
+	if productID == uuid.Nil {
+		return &ProductImageResult{
+			Success: false,
+			Message: "Image upload failed",
+			Error:   "Product ID is required",
+		}, fmt.Errorf("product ID is required")
+	}
+
+	// Check if product exists
+	_, err := s.ProductRepo.GetProductByID(productID)
+	if err != nil {
+		return &ProductImageResult{
+			Success: false,
+			Message: "Image upload failed",
+			Error:   "Product not found",
+		}, err
+	}
+
+	// Upload the file
+	uploadResult, err := s.UploadService.Upload(fileHeader, "product")
+	if err != nil {
+		return &ProductImageResult{
+			Success: false,
+			Message: "Image upload failed",
+			Error:   err.Error(),
+		}, err
+	}
+
+	// Get the current highest sort order
+	images, err := s.ProductImageRepo.GetImagesByProductID(productID)
+	if err != nil {
+		return &ProductImageResult{
+			Success: false,
+			Message: "Image upload failed",
+			Error:   "Error retrieving existing images",
+		}, err
+	}
+
+	sortOrder := 0
+	if len(images) > 0 {
+		// Find the highest sort order
+		for _, img := range images {
+			if img.SortOrder > sortOrder {
+				sortOrder = img.SortOrder
+			}
+		}
+		sortOrder++ // Increment for the new image
+	}
+
+	// Create the product image record
+	productImage := &product.ProductImage{
+		ProductID: productID,
+		URL:       uploadResult.URL,
+		Filename:  uploadResult.Filename,
+		IsPrimary: isPrimary,
+		SortOrder: sortOrder,
+	}
+
+	// If this is the first image or marked as primary, make it the primary image
+	if isPrimary || len(images) == 0 {
+		// Reset all other images to not primary
+		if len(images) > 0 {
+			for _, img := range images {
+				img.IsPrimary = false
+				if err := s.ProductImageRepo.UpdateImage(&img); err != nil {
+					return &ProductImageResult{
+						Success: false,
+						Message: "Image upload failed",
+						Error:   "Error updating existing images",
+					}, err
+				}
+			}
+		}
+		productImage.IsPrimary = true
+	}
+
+	// Save the product image
+	if err := s.ProductImageRepo.CreateImage(productImage); err != nil {
+		return &ProductImageResult{
+			Success: false,
+			Message: "Image upload failed",
+			Error:   "Error saving image record",
+		}, err
+	}
+
+	// If this is the first image or primary image, update the product's main image URL
+	if productImage.IsPrimary {
+		product, err := s.ProductRepo.GetProductByID(productID)
+		if err != nil {
+			return &ProductImageResult{
+				Success: false,
+				Message: "Image upload partially failed",
+				Error:   "Error updating product main image",
+			}, err
+		}
+		product.ImageURL = productImage.URL
+		if err := s.ProductRepo.UpdateProduct(product); err != nil {
+			return &ProductImageResult{
+				Success: false,
+				Message: "Image upload partially failed",
+				Error:   "Error updating product main image",
+			}, err
+		}
+	}
+
+	return &ProductImageResult{
+		Success:   true,
+		Message:   "Image uploaded successfully",
+		ImageID:   productImage.ID,
+		ProductID: productID,
+		URL:       productImage.URL,
+		Filename:  productImage.Filename,
+		IsPrimary: productImage.IsPrimary,
+		SortOrder: productImage.SortOrder,
+	}, nil
+}
+
+// SetPrimaryProductImage sets an image as the primary image for a product
+func (s *ProductService) SetPrimaryProductImage(imageID, productID uuid.UUID) (*ProductImageResult, error) {
+	// Check if image exists and belongs to the product
+	image, err := s.ProductImageRepo.GetImageByID(imageID)
+	if err != nil {
+		return &ProductImageResult{
+			Success: false,
+			Message: "Set primary image failed",
+			Error:   "Image not found",
+		}, err
+	}
+
+	if image.ProductID != productID {
+		return &ProductImageResult{
+			Success: false,
+			Message: "Set primary image failed",
+			Error:   "Image does not belong to this product",
+		}, fmt.Errorf("image does not belong to this product")
+	}
+
+	// Set as primary
+	if err := s.ProductImageRepo.SetPrimaryImage(imageID, productID); err != nil {
+		return &ProductImageResult{
+			Success: false,
+			Message: "Set primary image failed",
+			Error:   "Error setting primary image",
+		}, err
+	}
+
+	// Update the product's main image URL
+	product, err := s.ProductRepo.GetProductByID(productID)
+	if err != nil {
+		return &ProductImageResult{
+			Success: false,
+			Message: "Set primary image partially failed",
+			Error:   "Error updating product main image",
+		}, err
+	}
+	product.ImageURL = image.URL
+	if err := s.ProductRepo.UpdateProduct(product); err != nil {
+		return &ProductImageResult{
+			Success: false,
+			Message: "Set primary image partially failed",
+			Error:   "Error updating product main image",
+		}, err
+	}
+
+	// Refresh the image data
+	image, err = s.ProductImageRepo.GetImageByID(imageID)
+	if err != nil {
+		return &ProductImageResult{
+			Success: false,
+			Message: "Set primary image partially failed",
+			Error:   "Error retrieving updated image",
+		}, err
+	}
+
+	return &ProductImageResult{
+		Success:   true,
+		Message:   "Primary image set successfully",
+		ImageID:   image.ID,
+		ProductID: productID,
+		URL:       image.URL,
+		Filename:  image.Filename,
+		IsPrimary: image.IsPrimary,
+		SortOrder: image.SortOrder,
+	}, nil
+}
+
+// ReorderProductImages updates the sort order of product images
+func (s *ProductService) ReorderProductImages(productID uuid.UUID, imageIDs []uuid.UUID) error {
+	// Verify all images belong to the product
+	for _, imageID := range imageIDs {
+		image, err := s.ProductImageRepo.GetImageByID(imageID)
+		if err != nil {
+			return fmt.Errorf("image not found: %w", err)
+		}
+		if image.ProductID != productID {
+			return fmt.Errorf("image %s does not belong to product %s", imageID, productID)
+		}
+	}
+
+	// Update the sort order
+	return s.ProductImageRepo.ReorderImages(productID, imageIDs)
+}
+
+// DeleteProductImage deletes a product image
+func (s *ProductService) DeleteProductImage(imageID, productID uuid.UUID) (*ProductImageResult, error) {
+	// Check if image exists and belongs to the product
+	image, err := s.ProductImageRepo.GetImageByID(imageID)
+	if err != nil {
+		return &ProductImageResult{
+			Success: false,
+			Message: "Delete image failed",
+			Error:   "Image not found",
+		}, err
+	}
+
+	if image.ProductID != productID {
+		return &ProductImageResult{
+			Success: false,
+			Message: "Delete image failed",
+			Error:   "Image does not belong to this product",
+		}, fmt.Errorf("image does not belong to this product")
+	}
+
+	// If this is the primary image, we need to find another image to make primary
+	if image.IsPrimary {
+		// Get all other images for this product
+		images, err := s.ProductImageRepo.GetImagesByProductID(productID)
+		if err != nil {
+			return &ProductImageResult{
+				Success: false,
+				Message: "Delete image failed",
+				Error:   "Error retrieving product images",
+			}, err
+		}
+
+		// Find another image to make primary
+		var newPrimaryImage *product.ProductImage
+		for _, img := range images {
+			if img.ID != imageID {
+				newPrimaryImage = &img
+				break
+			}
+		}
+
+		// If we found another image, make it primary
+		if newPrimaryImage != nil {
+			if err := s.ProductImageRepo.SetPrimaryImage(newPrimaryImage.ID, productID); err != nil {
+				return &ProductImageResult{
+					Success: false,
+					Message: "Delete image failed",
+					Error:   "Error setting new primary image",
+				}, err
+			}
+
+			// Update the product's main image URL
+			product, err := s.ProductRepo.GetProductByID(productID)
+			if err != nil {
+				return &ProductImageResult{
+					Success: false,
+					Message: "Delete image failed",
+					Error:   "Error updating product main image",
+				}, err
+			}
+			product.ImageURL = newPrimaryImage.URL
+			if err := s.ProductRepo.UpdateProduct(product); err != nil {
+				return &ProductImageResult{
+					Success: false,
+					Message: "Delete image failed",
+					Error:   "Error updating product main image",
+				}, err
+			}
+		} else {
+			// If no other images, clear the product's main image URL
+			product, err := s.ProductRepo.GetProductByID(productID)
+			if err != nil {
+				return &ProductImageResult{
+					Success: false,
+					Message: "Delete image failed",
+					Error:   "Error updating product main image",
+				}, err
+			}
+			product.ImageURL = ""
+			if err := s.ProductRepo.UpdateProduct(product); err != nil {
+				return &ProductImageResult{
+					Success: false,
+					Message: "Delete image failed",
+					Error:   "Error updating product main image",
+				}, err
+			}
+		}
+	}
+
+	// Delete the image file
+	if err := s.UploadService.Delete(image.Filename); err != nil {
+		return &ProductImageResult{
+			Success: false,
+			Message: "Delete image partially failed",
+			Error:   "Error deleting image file",
+		}, err
+	}
+
+	// Delete the image record
+	if err := s.ProductImageRepo.DeleteImage(imageID); err != nil {
+		return &ProductImageResult{
+			Success: false,
+			Message: "Delete image partially failed",
+			Error:   "Error deleting image record",
+		}, err
+	}
+
+	return &ProductImageResult{
+		Success:   true,
+		Message:   "Image deleted successfully",
+		ImageID:   imageID,
+		ProductID: productID,
+	}, nil
 }

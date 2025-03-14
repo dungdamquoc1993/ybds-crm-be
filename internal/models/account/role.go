@@ -12,8 +12,6 @@ const (
 	RoleAdmin RoleType = "admin"
 	// RoleStaff represents a staff role
 	RoleStaff RoleType = "staff"
-	// RoleCustomer represents a customer role
-	RoleCustomer RoleType = "customer"
 	// RoleAgent represents an AI agent role
 	RoleAgent RoleType = "agent"
 )
