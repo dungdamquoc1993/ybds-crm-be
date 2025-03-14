@@ -18,12 +18,33 @@ import (
 	_ "github.com/ybds/docs" // Import swagger docs
 	"github.com/ybds/internal/api/handlers"
 	"github.com/ybds/internal/database"
+	"github.com/ybds/internal/middleware"
 	"github.com/ybds/internal/services"
 	"github.com/ybds/pkg/config"
 	pkgdb "github.com/ybds/pkg/database"
 	pkgjwt "github.com/ybds/pkg/jwt"
 	pkgws "github.com/ybds/pkg/websocket"
 )
+
+// @title YBDS API
+// @version 1.0
+// @description YBDS API Documentation
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name API Support
+// @contact.url http://www.swagger.io/support
+// @contact.email support@swagger.io
+
+// @license.name Apache 2.0
+// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host localhost:3000
+// @BasePath /
+
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name Authorization
+// @description JWT Authorization header using the Bearer scheme. Example: "Bearer {token}"
 
 func main() {
 	// Load configuration
@@ -74,9 +95,6 @@ func main() {
 	productHandler := handlers.NewProductHandler(dbConnections.ProductDB, notificationService)
 	orderHandler := handlers.NewOrderHandler(dbConnections.OrderDB, productService, userService, notificationService)
 	notificationHandler := handlers.NewNotificationHandler(dbConnections.NotificationDB, notificationService, hub)
-
-	// Initialize JWT service wrapper for internal use
-	internalJWTService := services.NewJWTServiceWrapper(jwtService)
 
 	// Create Fiber app
 	app := fiber.New(fiber.Config{
@@ -133,48 +151,60 @@ func main() {
 	// Protected routes that require authentication
 	// Create authenticated routes group
 	authenticated := api.Group("/")
-	authenticated.Use(internalJWTService.AuthMiddleware)
+	authenticated.Use(middleware.JWTAuth(jwtService))
 
-	// Register user routes
-	authenticated.Get("/users", userHandler.GetUsers)
-	authenticated.Get("/users/:id", userHandler.GetUserByID)
-	authenticated.Get("/guests/:id", userHandler.GetGuest)
+	// Create admin-only routes
+	adminRoutes := authenticated.Group("/")
+	adminRoutes.Use(middleware.AdminGuard())
 
-	// Register product routes
-	authenticated.Post("/products", productHandler.CreateProduct)
-	authenticated.Get("/products", productHandler.GetProducts)
-	authenticated.Get("/products/:id", productHandler.GetProductByID)
-	authenticated.Put("/products/:id", productHandler.UpdateProduct)
-	authenticated.Delete("/products/:id", productHandler.DeleteProduct)
+	// Create routes for both admin and agent
+	adminOrAgentRoutes := authenticated.Group("/")
+	adminOrAgentRoutes.Use(middleware.AdminOrAgentGuard())
 
-	// Inventory routes
-	authenticated.Post("/products/:id/inventories", productHandler.CreateInventory)
-	authenticated.Put("/products/inventories/:id", productHandler.UpdateInventory)
-	authenticated.Delete("/products/inventories/:id", productHandler.DeleteInventory)
+	// Register user routes - Admin only
+	adminRoutes.Get("/users", userHandler.GetUsers)
+	adminRoutes.Get("/users/:id", userHandler.GetUserByID)
+	adminRoutes.Get("/guests/:id", userHandler.GetGuest)
 
-	// Price routes
-	authenticated.Post("/products/:id/prices", productHandler.CreatePrice)
-	authenticated.Put("/products/prices/:id", productHandler.UpdatePrice)
-	authenticated.Delete("/products/prices/:id", productHandler.DeletePrice)
+	// Register product routes - Admin only
+	adminRoutes.Post("/products", productHandler.CreateProduct)
+	adminRoutes.Put("/products/:id", productHandler.UpdateProduct)
+	adminRoutes.Delete("/products/:id", productHandler.DeleteProduct)
 
-	// Register order routes
-	authenticated.Post("/orders", orderHandler.CreateOrder)
-	authenticated.Get("/orders", orderHandler.GetOrders)
-	authenticated.Get("/orders/:id", orderHandler.GetOrderByID)
-	authenticated.Put("/orders/:id/status", orderHandler.UpdateOrderStatus)
-	authenticated.Put("/orders/:id/payment", orderHandler.UpdatePaymentStatus)
-	authenticated.Delete("/orders/:id", orderHandler.DeleteOrder)
+	// Inventory routes - Admin only
+	adminRoutes.Post("/products/:id/inventories", productHandler.CreateInventory)
+	adminRoutes.Put("/products/inventories/:id", productHandler.UpdateInventory)
+	adminRoutes.Delete("/products/inventories/:id", productHandler.DeleteInventory)
 
-	// Order item routes
-	authenticated.Post("/orders/:id/items", orderHandler.AddOrderItem)
-	authenticated.Put("/orders/items/:id", orderHandler.UpdateOrderItem)
-	authenticated.Delete("/orders/items/:id", orderHandler.DeleteOrderItem)
+	// Price routes - Admin only
+	adminRoutes.Post("/products/:id/prices", productHandler.CreatePrice)
+	adminRoutes.Put("/products/prices/:id", productHandler.UpdatePrice)
+	adminRoutes.Delete("/products/prices/:id", productHandler.DeletePrice)
 
-	// Register notification routes
-	authenticated.Get("/notifications", notificationHandler.GetNotifications)
-	authenticated.Get("/notifications/unread", notificationHandler.GetUnreadNotifications)
-	authenticated.Put("/notifications/:id/read", notificationHandler.MarkAsRead)
-	authenticated.Put("/notifications/read-all", notificationHandler.MarkAllAsRead)
+	// Product read routes - Admin or Agent
+	adminOrAgentRoutes.Get("/products", productHandler.GetProducts)
+	adminOrAgentRoutes.Get("/products/:id", productHandler.GetProductByID)
+
+	// Register order routes - Admin only for management
+	adminRoutes.Put("/orders/:id/status", orderHandler.UpdateOrderStatus)
+	adminRoutes.Put("/orders/:id/payment", orderHandler.UpdatePaymentStatus)
+	adminRoutes.Delete("/orders/:id", orderHandler.DeleteOrder)
+
+	// Order routes - Admin or Agent
+	adminOrAgentRoutes.Post("/orders", orderHandler.CreateOrder)
+	adminOrAgentRoutes.Get("/orders", orderHandler.GetOrders)
+	adminOrAgentRoutes.Get("/orders/:id", orderHandler.GetOrderByID)
+
+	// Order item routes - Admin or Agent
+	adminOrAgentRoutes.Post("/orders/:id/items", orderHandler.AddOrderItem)
+	adminOrAgentRoutes.Put("/orders/items/:id", orderHandler.UpdateOrderItem)
+	adminOrAgentRoutes.Delete("/orders/items/:id", orderHandler.DeleteOrderItem)
+
+	// Register notification routes - Admin or Agent
+	adminOrAgentRoutes.Get("/notifications", notificationHandler.GetNotifications)
+	adminOrAgentRoutes.Get("/notifications/unread", notificationHandler.GetUnreadNotifications)
+	adminOrAgentRoutes.Put("/notifications/:id/read", notificationHandler.MarkAsRead)
+	adminOrAgentRoutes.Put("/notifications/read-all", notificationHandler.MarkAllAsRead)
 
 	// Start server
 	serverPort := fmt.Sprintf(":%s", cfg.Server.Port)

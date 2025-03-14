@@ -38,7 +38,7 @@ func (h *AuthHandler) RegisterRoutes(router fiber.Router) {
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 401 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /auth/login [post]
+// @Router /api/auth/login [post]
 func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	// Parse request
 	var loginRequest requests.LoginRequest
@@ -107,7 +107,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 // @Success 200 {object} responses.RegisterResponse
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /auth/register [post]
+// @Router /api/auth/register [post]
 func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	// Parse request
 	var registerRequest requests.RegisterRequest

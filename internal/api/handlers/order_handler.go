@@ -54,7 +54,7 @@ func (h *OrderHandler) RegisterRoutes(router fiber.Router, authMiddleware fiber.
 // @Success 201 {object} responses.OrderResponse
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /orders [post]
+// @Router /api/orders [post]
 // @Security ApiKeyAuth
 func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 	// Get user ID from context (set by auth middleware)
@@ -144,7 +144,7 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 // @Param search query string false "Search term"
 // @Success 200 {object} responses.OrdersResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /orders [get]
+// @Router /api/orders [get]
 // @Security ApiKeyAuth
 func (h *OrderHandler) GetOrders(c *fiber.Ctx) error {
 	// Parse pagination parameters
@@ -221,7 +221,7 @@ func (h *OrderHandler) GetOrders(c *fiber.Ctx) error {
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /orders/{id} [get]
+// @Router /api/orders/{id} [get]
 // @Security ApiKeyAuth
 func (h *OrderHandler) GetOrderByID(c *fiber.Ctx) error {
 	// Parse order ID
@@ -309,7 +309,7 @@ func (h *OrderHandler) GetOrderByID(c *fiber.Ctx) error {
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /orders/{id}/status [put]
+// @Router /api/orders/{id}/status [put]
 // @Security ApiKeyAuth
 func (h *OrderHandler) UpdateOrderStatus(c *fiber.Ctx) error {
 	// Parse order ID
@@ -378,7 +378,7 @@ func (h *OrderHandler) UpdateOrderStatus(c *fiber.Ctx) error {
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /orders/{id}/payment [put]
+// @Router /api/orders/{id}/payment [put]
 // @Security ApiKeyAuth
 func (h *OrderHandler) UpdatePaymentStatus(c *fiber.Ctx) error {
 	// Parse order ID
@@ -446,7 +446,7 @@ func (h *OrderHandler) UpdatePaymentStatus(c *fiber.Ctx) error {
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /orders/{id} [delete]
+// @Router /api/orders/{id} [delete]
 // @Security ApiKeyAuth
 func (h *OrderHandler) DeleteOrder(c *fiber.Ctx) error {
 	// Parse order ID
@@ -489,7 +489,7 @@ func (h *OrderHandler) DeleteOrder(c *fiber.Ctx) error {
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /orders/{id}/items [post]
+// @Router /api/orders/{id}/items [post]
 // @Security ApiKeyAuth
 func (h *OrderHandler) AddOrderItem(c *fiber.Ctx) error {
 	// Parse order ID
@@ -568,7 +568,7 @@ func (h *OrderHandler) AddOrderItem(c *fiber.Ctx) error {
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /orders/items/{id} [put]
+// @Router /api/orders/items/{id} [put]
 // @Security ApiKeyAuth
 func (h *OrderHandler) UpdateOrderItem(c *fiber.Ctx) error {
 	// Parse order item ID
@@ -646,7 +646,7 @@ func (h *OrderHandler) UpdateOrderItem(c *fiber.Ctx) error {
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /orders/items/{id} [delete]
+// @Router /api/orders/items/{id} [delete]
 // @Security ApiKeyAuth
 func (h *OrderHandler) DeleteOrderItem(c *fiber.Ctx) error {
 	// Parse order item ID

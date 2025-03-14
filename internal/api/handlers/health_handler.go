@@ -20,7 +20,7 @@ func NewHealthHandler() *HealthHandler {
 // @Accept json
 // @Produce json
 // @Success 200 {object} map[string]string
-// @Router /health [get]
+// @Router /api/health [get]
 func (h *HealthHandler) HandleHealthCheck(c *fiber.Ctx) error {
 	return utils.SuccessResponse(c, fiber.StatusOK, "Service is healthy", map[string]string{
 		"status":  "up",

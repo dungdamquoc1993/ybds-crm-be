@@ -50,7 +50,7 @@ func (h *NotificationHandler) RegisterRoutes(router fiber.Router, authMiddleware
 // @Success 200 {object} responses.NotificationsResponse
 // @Failure 401 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /notifications [get]
+// @Router /api/notifications [get]
 // @Security ApiKeyAuth
 func (h *NotificationHandler) GetNotifications(c *fiber.Ctx) error {
 	// Get user ID from context (set by auth middleware)
@@ -175,7 +175,7 @@ func (h *NotificationHandler) GetNotifications(c *fiber.Ctx) error {
 // @Success 200 {object} responses.NotificationsResponse
 // @Failure 401 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /notifications/unread [get]
+// @Router /api/notifications/unread [get]
 // @Security ApiKeyAuth
 func (h *NotificationHandler) GetUnreadNotifications(c *fiber.Ctx) error {
 	// Get user ID from context (set by auth middleware)
@@ -289,7 +289,7 @@ func (h *NotificationHandler) GetUnreadNotifications(c *fiber.Ctx) error {
 // @Failure 401 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /notifications/{id}/read [put]
+// @Router /api/notifications/{id}/read [put]
 // @Security ApiKeyAuth
 func (h *NotificationHandler) MarkAsRead(c *fiber.Ctx) error {
 	// Get user ID from context (set by auth middleware)
@@ -352,7 +352,7 @@ func (h *NotificationHandler) MarkAsRead(c *fiber.Ctx) error {
 // @Success 200 {object} responses.SuccessResponse
 // @Failure 401 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /notifications/read-all [put]
+// @Router /api/notifications/read-all [put]
 // @Security ApiKeyAuth
 func (h *NotificationHandler) MarkAllAsRead(c *fiber.Ctx) error {
 	// Get user ID from context (set by auth middleware)

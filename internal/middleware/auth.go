@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"github.com/ybds/pkg/jwt"
 )
 
@@ -44,6 +45,43 @@ func Protected(jwtService *jwt.JWTService) fiber.Handler {
 
 		// Store claims in context for later use
 		c.Locals("user", claims)
+		return c.Next()
+	}
+}
+
+// JWTAuth creates a middleware that validates JWT tokens and sets userID and roles in context
+func JWTAuth(jwtService *jwt.JWTService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		// Get the Authorization header
+		authHeader := c.Get("Authorization")
+		if authHeader == "" {
+			return fiber.NewError(fiber.StatusUnauthorized, "Authorization header is required")
+		}
+
+		// Check if the header starts with "Bearer "
+		if len(authHeader) < 7 || authHeader[:7] != "Bearer " {
+			return fiber.NewError(fiber.StatusUnauthorized, "Invalid authorization header format")
+		}
+
+		// Extract the token
+		tokenString := authHeader[7:]
+
+		// Validate the token
+		claims, err := jwtService.ValidateToken(tokenString)
+		if err != nil {
+			return fiber.NewError(fiber.StatusUnauthorized, "Invalid or expired token")
+		}
+
+		// Convert user ID string to UUID
+		userID, err := uuid.Parse(claims.UserID)
+		if err != nil {
+			return fiber.NewError(fiber.StatusUnauthorized, "Invalid user ID format in token")
+		}
+
+		// Set the user ID and roles in the context
+		c.Locals("userID", userID)
+		c.Locals("roles", claims.Roles)
+
 		return c.Next()
 	}
 }

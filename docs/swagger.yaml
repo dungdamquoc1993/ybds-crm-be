@@ -1,3 +1,4 @@
+basePath: /
 definitions:
   requests.AddOrderItemRequest:
     properties:
@@ -560,10 +561,21 @@ definitions:
           $ref: '#/definitions/responses.UserDetailResponse'
         type: array
     type: object
+host: localhost:3000
 info:
-  contact: {}
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: YBDS API Documentation
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: YBDS API
+  version: "1.0"
 paths:
-  /auth/login:
+  /api/auth/login:
     post:
       consumes:
       - application/json
@@ -597,7 +609,7 @@ paths:
       summary: Login to the application
       tags:
       - auth
-  /auth/register:
+  /api/auth/register:
     post:
       consumes:
       - application/json
@@ -627,7 +639,7 @@ paths:
       summary: Register a new user
       tags:
       - auth
-  /guests/{id}:
+  /api/guests/{id}:
     get:
       consumes:
       - application/json
@@ -662,7 +674,7 @@ paths:
       summary: Get a guest with all relationships
       tags:
       - guests
-  /health:
+  /api/health:
     get:
       consumes:
       - application/json
@@ -679,7 +691,7 @@ paths:
       summary: Health check endpoint
       tags:
       - health
-  /notifications:
+  /api/notifications:
     get:
       consumes:
       - application/json
@@ -717,7 +729,7 @@ paths:
       summary: Get all notifications for the current user
       tags:
       - notifications
-  /notifications/{id}/read:
+  /api/notifications/{id}/read:
     put:
       consumes:
       - application/json
@@ -756,7 +768,7 @@ paths:
       summary: Mark a notification as read
       tags:
       - notifications
-  /notifications/read-all:
+  /api/notifications/read-all:
     put:
       consumes:
       - application/json
@@ -781,7 +793,7 @@ paths:
       summary: Mark all notifications as read
       tags:
       - notifications
-  /notifications/unread:
+  /api/notifications/unread:
     get:
       consumes:
       - application/json
@@ -815,7 +827,7 @@ paths:
       summary: Get unread notifications for the current user
       tags:
       - notifications
-  /orders:
+  /api/orders:
     get:
       consumes:
       - application/json
@@ -896,7 +908,7 @@ paths:
       summary: Create a new order
       tags:
       - orders
-  /orders/{id}:
+  /api/orders/{id}:
     delete:
       consumes:
       - application/json
@@ -965,7 +977,7 @@ paths:
       summary: Get an order by ID
       tags:
       - orders
-  /orders/{id}/items:
+  /api/orders/{id}/items:
     post:
       consumes:
       - application/json
@@ -1006,7 +1018,7 @@ paths:
       summary: Add an item to an order
       tags:
       - orders
-  /orders/{id}/payment:
+  /api/orders/{id}/payment:
     put:
       consumes:
       - application/json
@@ -1047,7 +1059,7 @@ paths:
       summary: Update an order's payment status
       tags:
       - orders
-  /orders/{id}/status:
+  /api/orders/{id}/status:
     put:
       consumes:
       - application/json
@@ -1088,7 +1100,7 @@ paths:
       summary: Update an order's status
       tags:
       - orders
-  /orders/items/{id}:
+  /api/orders/items/{id}:
     delete:
       consumes:
       - application/json
@@ -1163,7 +1175,7 @@ paths:
       summary: Update an order item
       tags:
       - orders
-  /products:
+  /api/products:
     get:
       consumes:
       - application/json
@@ -1232,7 +1244,7 @@ paths:
       summary: Create a new product
       tags:
       - products
-  /products/{id}:
+  /api/products/{id}:
     delete:
       consumes:
       - application/json
@@ -1341,7 +1353,7 @@ paths:
       summary: Update a product
       tags:
       - products
-  /products/{id}/inventories:
+  /api/products/{id}/inventories:
     post:
       consumes:
       - application/json
@@ -1382,7 +1394,7 @@ paths:
       summary: Create a new inventory for a product
       tags:
       - products
-  /products/{id}/prices:
+  /api/products/{id}/prices:
     post:
       consumes:
       - application/json
@@ -1423,7 +1435,7 @@ paths:
       summary: Create a new price for a product
       tags:
       - products
-  /products/inventories/{id}:
+  /api/products/inventories/{id}:
     delete:
       consumes:
       - application/json
@@ -1498,7 +1510,7 @@ paths:
       summary: Update an inventory
       tags:
       - products
-  /products/prices/{id}:
+  /api/products/prices/{id}:
     delete:
       consumes:
       - application/json
@@ -1573,7 +1585,7 @@ paths:
       summary: Update a price
       tags:
       - products
-  /users:
+  /api/users:
     get:
       consumes:
       - application/json
@@ -1619,7 +1631,7 @@ paths:
       summary: Get all users with their relationships
       tags:
       - users
-  /users/{id}:
+  /api/users/{id}:
     get:
       consumes:
       - application/json
@@ -1654,4 +1666,11 @@ paths:
       summary: Get a user by ID with all relationships
       tags:
       - users
+securityDefinitions:
+  ApiKeyAuth:
+    description: 'JWT Authorization header using the Bearer scheme. Example: "Bearer
+      {token}"'
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

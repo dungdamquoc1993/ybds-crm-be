@@ -1,10 +1,24 @@
 {
     "swagger": "2.0",
     "info": {
-        "contact": {}
+        "description": "YBDS API Documentation",
+        "title": "YBDS API",
+        "termsOfService": "http://swagger.io/terms/",
+        "contact": {
+            "name": "API Support",
+            "url": "http://www.swagger.io/support",
+            "email": "support@swagger.io"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        },
+        "version": "1.0"
     },
+    "host": "localhost:3000",
+    "basePath": "/",
     "paths": {
-        "/auth/login": {
+        "/api/auth/login": {
             "post": {
                 "description": "Login for admin and AI agent users",
                 "consumes": [
@@ -56,7 +70,7 @@
                 }
             }
         },
-        "/auth/register": {
+        "/api/auth/register": {
             "post": {
                 "description": "Register a new user with email or phone and password",
                 "consumes": [
@@ -102,7 +116,7 @@
                 }
             }
         },
-        "/guests/{id}": {
+        "/api/guests/{id}": {
             "get": {
                 "security": [
                     {
@@ -157,7 +171,7 @@
                 }
             }
         },
-        "/health": {
+        "/api/health": {
             "get": {
                 "description": "Check if the service is up and running",
                 "consumes": [
@@ -183,7 +197,7 @@
                 }
             }
         },
-        "/notifications": {
+        "/api/notifications": {
             "get": {
                 "security": [
                     {
@@ -243,7 +257,7 @@
                 }
             }
         },
-        "/notifications/read-all": {
+        "/api/notifications/read-all": {
             "put": {
                 "security": [
                     {
@@ -283,7 +297,7 @@
                 }
             }
         },
-        "/notifications/unread": {
+        "/api/notifications/unread": {
             "get": {
                 "security": [
                     {
@@ -337,7 +351,7 @@
                 }
             }
         },
-        "/notifications/{id}/read": {
+        "/api/notifications/{id}/read": {
             "put": {
                 "security": [
                     {
@@ -398,7 +412,7 @@
                 }
             }
         },
-        "/orders": {
+        "/api/orders": {
             "get": {
                 "security": [
                     {
@@ -525,7 +539,7 @@
                 }
             }
         },
-        "/orders/items/{id}": {
+        "/api/orders/items/{id}": {
             "put": {
                 "security": [
                     {
@@ -642,7 +656,7 @@
                 }
             }
         },
-        "/orders/{id}": {
+        "/api/orders/{id}": {
             "get": {
                 "security": [
                     {
@@ -750,7 +764,7 @@
                 }
             }
         },
-        "/orders/{id}/items": {
+        "/api/orders/{id}/items": {
             "post": {
                 "security": [
                     {
@@ -814,7 +828,7 @@
                 }
             }
         },
-        "/orders/{id}/payment": {
+        "/api/orders/{id}/payment": {
             "put": {
                 "security": [
                     {
@@ -878,7 +892,7 @@
                 }
             }
         },
-        "/orders/{id}/status": {
+        "/api/orders/{id}/status": {
             "put": {
                 "security": [
                     {
@@ -942,7 +956,7 @@
                 }
             }
         },
-        "/products": {
+        "/api/products": {
             "get": {
                 "security": [
                     {
@@ -1051,7 +1065,7 @@
                 }
             }
         },
-        "/products/inventories/{id}": {
+        "/api/products/inventories/{id}": {
             "put": {
                 "security": [
                     {
@@ -1168,7 +1182,7 @@
                 }
             }
         },
-        "/products/prices/{id}": {
+        "/api/products/prices/{id}": {
             "put": {
                 "security": [
                     {
@@ -1285,7 +1299,7 @@
                 }
             }
         },
-        "/products/{id}": {
+        "/api/products/{id}": {
             "get": {
                 "security": [
                     {
@@ -1455,7 +1469,7 @@
                 }
             }
         },
-        "/products/{id}/inventories": {
+        "/api/products/{id}/inventories": {
             "post": {
                 "security": [
                     {
@@ -1519,7 +1533,7 @@
                 }
             }
         },
-        "/products/{id}/prices": {
+        "/api/products/{id}/prices": {
             "post": {
                 "security": [
                     {
@@ -1583,7 +1597,7 @@
                 }
             }
         },
-        "/users": {
+        "/api/users": {
             "get": {
                 "security": [
                     {
@@ -1655,7 +1669,7 @@
                 }
             }
         },
-        "/users/{id}": {
+        "/api/users/{id}": {
             "get": {
                 "security": [
                     {
@@ -2571,6 +2585,14 @@
                     }
                 }
             }
+        }
+    },
+    "securityDefinitions": {
+        "ApiKeyAuth": {
+            "description": "JWT Authorization header using the Bearer scheme. Example: \"Bearer {token}\"",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
         }
     }
 }

@@ -58,7 +58,7 @@ func (h *ProductHandler) RegisterRoutes(router fiber.Router, authMiddleware fibe
 // @Success 200 {object} responses.ProductDetailResponse
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /products [post]
+// @Router /api/products [post]
 // @Security ApiKeyAuth
 func (h *ProductHandler) CreateProduct(c *fiber.Ctx) error {
 	// Parse request
@@ -165,7 +165,7 @@ func (h *ProductHandler) CreateProduct(c *fiber.Ctx) error {
 // @Param category query string false "Filter by category"
 // @Success 200 {object} responses.ProductsResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /products [get]
+// @Router /api/products [get]
 // @Security ApiKeyAuth
 func (h *ProductHandler) GetProducts(c *fiber.Ctx) error {
 	// Parse pagination parameters
@@ -218,7 +218,7 @@ func (h *ProductHandler) GetProducts(c *fiber.Ctx) error {
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /products/{id} [get]
+// @Router /api/products/{id} [get]
 // @Security ApiKeyAuth
 func (h *ProductHandler) GetProductByID(c *fiber.Ctx) error {
 	// Parse product ID
@@ -262,7 +262,7 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) error {
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /products/{id} [put]
+// @Router /api/products/{id} [put]
 // @Security ApiKeyAuth
 func (h *ProductHandler) UpdateProduct(c *fiber.Ctx) error {
 	// Parse product ID
@@ -333,7 +333,7 @@ func (h *ProductHandler) UpdateProduct(c *fiber.Ctx) error {
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /products/{id} [delete]
+// @Router /api/products/{id} [delete]
 // @Security ApiKeyAuth
 func (h *ProductHandler) DeleteProduct(c *fiber.Ctx) error {
 	// Parse product ID
@@ -377,7 +377,7 @@ func (h *ProductHandler) DeleteProduct(c *fiber.Ctx) error {
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /products/{id}/inventories [post]
+// @Router /api/products/{id}/inventories [post]
 // @Security ApiKeyAuth
 func (h *ProductHandler) CreateInventory(c *fiber.Ctx) error {
 	// Parse product ID
@@ -447,7 +447,7 @@ func (h *ProductHandler) CreateInventory(c *fiber.Ctx) error {
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /products/inventories/{id} [put]
+// @Router /api/products/inventories/{id} [put]
 // @Security ApiKeyAuth
 func (h *ProductHandler) UpdateInventory(c *fiber.Ctx) error {
 	// Parse inventory ID
@@ -524,7 +524,7 @@ func (h *ProductHandler) UpdateInventory(c *fiber.Ctx) error {
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /products/inventories/{id} [delete]
+// @Router /api/products/inventories/{id} [delete]
 // @Security ApiKeyAuth
 func (h *ProductHandler) DeleteInventory(c *fiber.Ctx) error {
 	// Parse inventory ID
@@ -568,7 +568,7 @@ func (h *ProductHandler) DeleteInventory(c *fiber.Ctx) error {
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /products/{id}/prices [post]
+// @Router /api/products/{id}/prices [post]
 // @Security ApiKeyAuth
 func (h *ProductHandler) CreatePrice(c *fiber.Ctx) error {
 	// Parse product ID
@@ -646,7 +646,7 @@ func (h *ProductHandler) CreatePrice(c *fiber.Ctx) error {
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /products/prices/{id} [put]
+// @Router /api/products/prices/{id} [put]
 // @Security ApiKeyAuth
 func (h *ProductHandler) UpdatePrice(c *fiber.Ctx) error {
 	// Parse price ID
@@ -702,7 +702,7 @@ func (h *ProductHandler) UpdatePrice(c *fiber.Ctx) error {
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /products/prices/{id} [delete]
+// @Router /api/products/prices/{id} [delete]
 // @Security ApiKeyAuth
 func (h *ProductHandler) DeletePrice(c *fiber.Ctx) error {
 	// Parse price ID

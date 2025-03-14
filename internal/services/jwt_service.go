@@ -1,8 +1,6 @@
 package services
 
 import (
-	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 	"github.com/ybds/pkg/jwt"
 )
 
@@ -28,37 +26,10 @@ func (s *JWTServiceWrapper) ValidateToken(tokenString string) (*jwt.CustomClaims
 	return s.jwtService.ValidateToken(tokenString)
 }
 
-// AuthMiddleware is a middleware that validates JWT tokens
-func (s *JWTServiceWrapper) AuthMiddleware(c *fiber.Ctx) error {
-	// Get the Authorization header
-	authHeader := c.Get("Authorization")
-	if authHeader == "" {
-		return fiber.NewError(fiber.StatusUnauthorized, "Authorization header is required")
-	}
-
-	// Check if the header starts with "Bearer "
-	if len(authHeader) < 7 || authHeader[:7] != "Bearer " {
-		return fiber.NewError(fiber.StatusUnauthorized, "Invalid authorization header format")
-	}
-
-	// Extract the token
-	tokenString := authHeader[7:]
-
-	// Validate the token
-	claims, err := s.ValidateToken(tokenString)
-	if err != nil {
-		return fiber.NewError(fiber.StatusUnauthorized, "Invalid or expired token")
-	}
-
-	// Convert user ID string to UUID
-	userID, err := uuid.Parse(claims.UserID)
-	if err != nil {
-		return fiber.NewError(fiber.StatusUnauthorized, "Invalid user ID format in token")
-	}
-
-	// Set the user ID and roles in the context
-	c.Locals("userID", userID)
-	c.Locals("roles", claims.Roles)
-
-	return c.Next()
+// GetJWTService returns the underlying JWT service
+func (s *JWTServiceWrapper) GetJWTService() *jwt.JWTService {
+	return s.jwtService
 }
+
+// Note: The AuthMiddleware functionality has been moved to the middleware package
+// Use middleware.JWTAuth instead

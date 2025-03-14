@@ -5,23 +5,34 @@ import (
 	"github.com/ybds/internal/utils"
 )
 
-// RoleGuard creates a middleware that checks if the user has the required role
-func RoleGuard(roles ...string) fiber.Handler {
+// RoleGuard creates a middleware that checks if the user has any of the required roles
+func RoleGuard(requiredRoles ...string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		// Get user role from context
-		userRole, ok := c.Locals("role").(string)
+		// Get user roles from context
+		userRoles, ok := c.Locals("roles").([]string)
 		if !ok {
 			return utils.UnauthorizedResponse(c)
 		}
 
-		// Check if the user has one of the required roles
-		for _, role := range roles {
-			if userRole == role {
-				return c.Next()
+		// Check if the user has any of the required roles
+		hasRequiredRole := false
+		for _, required := range requiredRoles {
+			for _, role := range userRoles {
+				if role == required {
+					hasRequiredRole = true
+					break
+				}
+			}
+			if hasRequiredRole {
+				break
 			}
 		}
 
-		return utils.ForbiddenResponse(c)
+		if !hasRequiredRole {
+			return utils.ForbiddenResponse(c)
+		}
+
+		return c.Next()
 	}
 }
 
@@ -30,7 +41,12 @@ func AdminGuard() fiber.Handler {
 	return RoleGuard("admin")
 }
 
-// UserGuard creates a middleware that checks if the user is a regular user
-func UserGuard() fiber.Handler {
-	return RoleGuard("user", "admin")
+// AgentGuard creates a middleware that checks if the user is an AI agent
+func AgentGuard() fiber.Handler {
+	return RoleGuard("agent")
+}
+
+// AdminOrAgentGuard creates a middleware that checks if the user is an admin or an AI agent
+func AdminOrAgentGuard() fiber.Handler {
+	return RoleGuard("admin", "agent")
 }

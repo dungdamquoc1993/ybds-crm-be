@@ -9,13 +9,22 @@ const docTemplate = `{
     "info": {
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
-        "contact": {},
+        "termsOfService": "http://swagger.io/terms/",
+        "contact": {
+            "name": "API Support",
+            "url": "http://www.swagger.io/support",
+            "email": "support@swagger.io"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        },
         "version": "{{.Version}}"
     },
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/auth/login": {
+        "/api/auth/login": {
             "post": {
                 "description": "Login for admin and AI agent users",
                 "consumes": [
@@ -67,7 +76,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/auth/register": {
+        "/api/auth/register": {
             "post": {
                 "description": "Register a new user with email or phone and password",
                 "consumes": [
@@ -113,7 +122,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/guests/{id}": {
+        "/api/guests/{id}": {
             "get": {
                 "security": [
                     {
@@ -168,7 +177,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/health": {
+        "/api/health": {
             "get": {
                 "description": "Check if the service is up and running",
                 "consumes": [
@@ -194,7 +203,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/notifications": {
+        "/api/notifications": {
             "get": {
                 "security": [
                     {
@@ -254,7 +263,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/notifications/read-all": {
+        "/api/notifications/read-all": {
             "put": {
                 "security": [
                     {
@@ -294,7 +303,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/notifications/unread": {
+        "/api/notifications/unread": {
             "get": {
                 "security": [
                     {
@@ -348,7 +357,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/notifications/{id}/read": {
+        "/api/notifications/{id}/read": {
             "put": {
                 "security": [
                     {
@@ -409,7 +418,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/orders": {
+        "/api/orders": {
             "get": {
                 "security": [
                     {
@@ -536,7 +545,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/orders/items/{id}": {
+        "/api/orders/items/{id}": {
             "put": {
                 "security": [
                     {
@@ -653,7 +662,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/orders/{id}": {
+        "/api/orders/{id}": {
             "get": {
                 "security": [
                     {
@@ -761,7 +770,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/orders/{id}/items": {
+        "/api/orders/{id}/items": {
             "post": {
                 "security": [
                     {
@@ -825,7 +834,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/orders/{id}/payment": {
+        "/api/orders/{id}/payment": {
             "put": {
                 "security": [
                     {
@@ -889,7 +898,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/orders/{id}/status": {
+        "/api/orders/{id}/status": {
             "put": {
                 "security": [
                     {
@@ -953,7 +962,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/products": {
+        "/api/products": {
             "get": {
                 "security": [
                     {
@@ -1062,7 +1071,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/products/inventories/{id}": {
+        "/api/products/inventories/{id}": {
             "put": {
                 "security": [
                     {
@@ -1179,7 +1188,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/products/prices/{id}": {
+        "/api/products/prices/{id}": {
             "put": {
                 "security": [
                     {
@@ -1296,7 +1305,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/products/{id}": {
+        "/api/products/{id}": {
             "get": {
                 "security": [
                     {
@@ -1466,7 +1475,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/products/{id}/inventories": {
+        "/api/products/{id}/inventories": {
             "post": {
                 "security": [
                     {
@@ -1530,7 +1539,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/products/{id}/prices": {
+        "/api/products/{id}/prices": {
             "post": {
                 "security": [
                     {
@@ -1594,7 +1603,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/users": {
+        "/api/users": {
             "get": {
                 "security": [
                     {
@@ -1666,7 +1675,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/users/{id}": {
+        "/api/users/{id}": {
             "get": {
                 "security": [
                     {
@@ -2583,17 +2592,25 @@ const docTemplate = `{
                 }
             }
         }
+    },
+    "securityDefinitions": {
+        "ApiKeyAuth": {
+            "description": "JWT Authorization header using the Bearer scheme. Example: \"Bearer {token}\"",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
     }
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "",
-	Host:             "",
-	BasePath:         "",
+	Version:          "1.0",
+	Host:             "localhost:3000",
+	BasePath:         "/",
 	Schemes:          []string{},
-	Title:            "",
-	Description:      "",
+	Title:            "YBDS API",
+	Description:      "YBDS API Documentation",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

@@ -50,7 +50,7 @@ func (h *UserHandler) RegisterRoutes(router fiber.Router, authMiddleware fiber.H
 // @Success 200 {object} responses.UsersResponse
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /users [get]
+// @Router /api/users [get]
 // @Security ApiKeyAuth
 func (h *UserHandler) GetUsers(c *fiber.Ctx) error {
 	// Parse pagination parameters
@@ -92,7 +92,7 @@ func (h *UserHandler) GetUsers(c *fiber.Ctx) error {
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /users/{id} [get]
+// @Router /api/users/{id} [get]
 // @Security ApiKeyAuth
 func (h *UserHandler) GetUserByID(c *fiber.Ctx) error {
 	// Parse user ID from path
@@ -135,7 +135,7 @@ func (h *UserHandler) GetUserByID(c *fiber.Ctx) error {
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /guests/{id} [get]
+// @Router /api/guests/{id} [get]
 // @Security ApiKeyAuth
 func (h *UserHandler) GetGuest(c *fiber.Ctx) error {
 	// Parse guest ID from path
