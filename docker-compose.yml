@@ -1,6 +1,11 @@
 version: '3.8'
 
+# Development Docker Compose Configuration
+# This file is used for local development environments
+
+# Service definitions
 services:
+  # Application service
   app:
     build:
       context: .
@@ -9,12 +14,14 @@ services:
     ports:
       - "3000:3000"
     environment:
+      # Database connection
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USER=crypto-gambling-user
       - DB_PASS=crypto-gambling-pass
       - DB_NAME=ybds
       - DB_SSL_MODE=disable
+      # Application settings
       - SERVER_PORT=3000
       - ENV=development
       - JWT_SECRET=your_jwt_secret_key_here
@@ -29,11 +36,12 @@ services:
     networks:
       - ybds-network
 
+  # Database service
   postgres:
     image: postgres:15-alpine
     container_name: ybds-postgres
     ports:
-      - "5435:5432"
+      - "5435:5432"  # Mapped to 5435 to avoid conflicts with local PostgreSQL
     environment:
       - POSTGRES_USER=crypto-gambling-user
       - POSTGRES_PASSWORD=crypto-gambling-pass
@@ -44,12 +52,17 @@ services:
     networks:
       - ybds-network
 
+# Volume definitions
 volumes:
+  # Persistent storage for PostgreSQL data
   postgres-data:
     driver: local
+  # Persistent storage for uploaded files
   uploads-data:
     driver: local
 
+# Network definitions
 networks:
+  # Internal network for container communication
   ybds-network:
     driver: bridge 

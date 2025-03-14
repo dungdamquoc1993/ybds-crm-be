@@ -2,6 +2,72 @@
 
 This repository contains the backend API for the YBDS application, which serves both a React client and an AI agent.
 
+## Quick Start
+
+### Prerequisites
+
+- Go 1.18 or higher
+- PostgreSQL
+- Docker (optional, for containerized deployment)
+
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/ybds.git
+   cd ybds
+   ```
+
+2. Install dependencies:
+   ```bash
+   go mod download
+   ```
+
+3. Set up environment variables:
+   ```bash
+   cp .env.example .env
+   # Edit .env file with your configuration
+   ```
+
+4. Run the application:
+   ```bash
+   go run cmd/server/main.go
+   ```
+
+## Docker Setup
+
+Run the application using Docker Compose:
+
+```bash
+# Development
+docker-compose up -d
+
+# Production
+docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d
+```
+
+## API Documentation
+
+API documentation is available via Swagger UI when the application is running:
+
+```
+http://localhost:8080/swagger/index.html
+```
+
+## Comprehensive Documentation
+
+For detailed documentation, please refer to the [Complete Documentation](docs/documentation.md) which includes:
+
+- Project Architecture
+- Database and Business Rules
+- Testing Strategy
+- Production Deployment Guide
+- And more...
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
 ## Features
 
 - User management (registration, authentication, profile management)
@@ -56,38 +122,6 @@ This repository contains the backend API for the YBDS application, which serves 
 └── Dockerfile                # Docker configuration
 ```
 
-## Getting Started
-
-### Prerequisites
-
-- Go 1.18 or higher
-- PostgreSQL
-- Docker (optional, for containerized deployment)
-
-### Installation
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/ybds.git
-   cd ybds
-   ```
-
-2. Install dependencies:
-   ```bash
-   go mod download
-   ```
-
-3. Set up environment variables:
-   ```bash
-   cp .env.example .env
-   # Edit .env file with your configuration
-   ```
-
-4. Run the application:
-   ```bash
-   go run cmd/server/main.go
-   ```
-
 ## Running Tests
 
 ### Unit Tests
@@ -137,14 +171,6 @@ go run cmd/server/main.go --env=test
 go test ./tests/e2e/...
 ```
 
-## API Documentation
-
-API documentation is available via Swagger UI when the application is running:
-
-```
-http://localhost:8080/swagger/index.html
-```
-
 ## Contributing
 
 1. Fork the repository
@@ -152,10 +178,6 @@ http://localhost:8080/swagger/index.html
 3. Commit your changes (`git commit -m 'Add some amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Testing
 

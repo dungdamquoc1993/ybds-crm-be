@@ -20,6 +20,15 @@ func NewProductImageRepository(db *gorm.DB) *ProductImageRepository {
 
 // GetImagesByProductID retrieves all images for a product
 func (r *ProductImageRepository) GetImagesByProductID(productID uuid.UUID) ([]product.ProductImage, error) {
+	// Check if product exists and is not deleted
+	var count int64
+	if err := r.db.Model(&product.Product{}).Where("id = ? AND deleted_at IS NULL", productID).Count(&count).Error; err != nil {
+		return nil, err
+	}
+	if count == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+
 	var images []product.ProductImage
 	err := r.db.Where("product_id = ?", productID).
 		Order("is_primary DESC, sort_order ASC").
@@ -30,7 +39,9 @@ func (r *ProductImageRepository) GetImagesByProductID(productID uuid.UUID) ([]pr
 // GetImageByID retrieves an image by ID
 func (r *ProductImageRepository) GetImageByID(id uuid.UUID) (*product.ProductImage, error) {
 	var image product.ProductImage
-	err := r.db.Where("id = ?", id).First(&image).Error
+	err := r.db.Joins("JOIN products ON product_images.product_id = products.id").
+		Where("product_images.id = ? AND products.deleted_at IS NULL", id).
+		First(&image).Error
 	return &image, err
 }
 

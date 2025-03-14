@@ -1,6 +1,11 @@
 version: '3.8'
 
+# Production Docker Compose Configuration
+# This file is used for production deployment
+
+# Service definitions
 services:
+  # Application service
   app:
     build:
       context: .
@@ -9,12 +14,14 @@ services:
     ports:
       - "3000:3000"
     environment:
+      # Database connection
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USER=${DB_USER}
       - DB_PASS=${DB_PASS}
       - DB_NAME=${DB_NAME}
       - DB_SSL_MODE=require
+      # Application settings
       - SERVER_PORT=3000
       - ENV=production
       - JWT_SECRET=${JWT_SECRET}
@@ -34,6 +41,7 @@ services:
           cpus: '1'
           memory: 1G
 
+  # Database service
   postgres:
     image: postgres:15-alpine
     container_name: ybds-postgres
@@ -54,7 +62,7 @@ services:
           cpus: '1'
           memory: 1G
 
-  # Optional: Add a backup service for the uploads directory
+  # Backup service for uploaded files
   backup:
     image: alpine:latest
     container_name: ybds-backup
@@ -79,12 +87,17 @@ services:
           cpus: '0.1'
           memory: 128M
 
+# Volume definitions
 volumes:
+  # Persistent storage for PostgreSQL data
   postgres-data:
     driver: local
+  # Persistent storage for uploaded files
   uploads-data:
     driver: local
 
+# Network definitions
 networks:
+  # Internal network for container communication
   ybds-network:
     driver: bridge 

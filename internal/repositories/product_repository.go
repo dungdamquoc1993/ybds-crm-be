@@ -204,6 +204,18 @@ func (r *ProductRepository) CreateInventoryTransaction(transaction *product.Inve
 
 // GetInventoryTransactionsByInventoryID retrieves all transactions for an inventory
 func (r *ProductRepository) GetInventoryTransactionsByInventoryID(inventoryID uuid.UUID) ([]product.InventoryTransaction, error) {
+	// Check if inventory exists and is not deleted
+	var count int64
+	if err := r.db.Model(&product.Inventory{}).
+		Joins("JOIN products ON inventories.product_id = products.id").
+		Where("inventories.id = ? AND products.deleted_at IS NULL", inventoryID).
+		Count(&count).Error; err != nil {
+		return nil, err
+	}
+	if count == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+
 	var transactions []product.InventoryTransaction
 	err := r.db.Where("inventory_id = ?", inventoryID).Find(&transactions).Error
 	return transactions, err
@@ -217,9 +229,11 @@ func (r *ProductRepository) UpdateInventoryQuantity(inventoryID uuid.UUID, quant
 		return tx.Error
 	}
 
-	// Get the inventory
+	// Get the inventory and check if associated product is not deleted
 	var inventory product.Inventory
-	if err := tx.Where("id = ?", inventoryID).First(&inventory).Error; err != nil {
+	if err := tx.Joins("JOIN products ON inventories.product_id = products.id").
+		Where("inventories.id = ? AND products.deleted_at IS NULL", inventoryID).
+		First(&inventory).Error; err != nil {
 		tx.Rollback()
 		return err
 	}
