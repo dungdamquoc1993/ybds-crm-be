@@ -87,13 +87,25 @@ func (r *OrderRepository) UpdateOrderStatus(id uuid.UUID, status order.OrderStat
 // GetOrderItemByID retrieves an order item by ID
 func (r *OrderRepository) GetOrderItemByID(id uuid.UUID) (*order.OrderItem, error) {
 	var item order.OrderItem
-	err := r.db.Where("id = ?", id).First(&item).Error
+	err := r.db.Joins("JOIN orders ON order_items.order_id = orders.id").
+		Where("order_items.id = ? AND orders.deleted_at IS NULL", id).
+		First(&item).Error
 	return &item, err
 }
 
 // GetOrderItemsByOrderID retrieves all items for an order
 func (r *OrderRepository) GetOrderItemsByOrderID(orderID uuid.UUID) ([]order.OrderItem, error) {
 	var items []order.OrderItem
+
+	// Check if order exists and is not deleted
+	var count int64
+	if err := r.db.Model(&order.Order{}).Where("id = ? AND deleted_at IS NULL", orderID).Count(&count).Error; err != nil {
+		return nil, err
+	}
+	if count == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+
 	err := r.db.Where("order_id = ?", orderID).Find(&items).Error
 	return items, err
 }
@@ -116,12 +128,23 @@ func (r *OrderRepository) DeleteOrderItem(id uuid.UUID) error {
 // GetShipmentByID retrieves a shipment by ID
 func (r *OrderRepository) GetShipmentByID(id uuid.UUID) (*order.Shipment, error) {
 	var shipment order.Shipment
-	err := r.db.Where("id = ?", id).First(&shipment).Error
+	err := r.db.Joins("JOIN orders ON shipments.order_id = orders.id").
+		Where("shipments.id = ? AND orders.deleted_at IS NULL", id).
+		First(&shipment).Error
 	return &shipment, err
 }
 
 // GetShipmentByOrderID retrieves a shipment by order ID
 func (r *OrderRepository) GetShipmentByOrderID(orderID uuid.UUID) (*order.Shipment, error) {
+	// Check if order exists and is not deleted
+	var count int64
+	if err := r.db.Model(&order.Order{}).Where("id = ? AND deleted_at IS NULL", orderID).Count(&count).Error; err != nil {
+		return nil, err
+	}
+	if count == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+
 	var shipment order.Shipment
 	err := r.db.Where("order_id = ?", orderID).First(&shipment).Error
 	return &shipment, err

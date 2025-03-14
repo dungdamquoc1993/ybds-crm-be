@@ -89,8 +89,10 @@ definitions:
           $ref: '#/definitions/requests.OrderItemInfo'
         type: array
       notes:
+        example: Please deliver in the morning
         type: string
       payment_method:
+        example: cash
         type: string
       shipping_address:
         description: Shipping address information
@@ -109,6 +111,7 @@ definitions:
         example: Ward 1
         type: string
       status:
+        example: pending_confirmation
         type: string
     type: object
   requests.CreatePriceRequest:
@@ -949,7 +952,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Create a new order with items
+      description: Create a new order with items. Only customer_name and items are
+        required, all other fields are optional.
       parameters:
       - description: Order details
         in: body
@@ -1175,7 +1179,8 @@ paths:
     put:
       consumes:
       - application/json
-      description: Update the status of an order
+      description: Update the status of an order. Status can be changed to 'canceled'
+        from any state except 'returned', 'return_processing', or 'delivered'.
       parameters:
       - description: Order ID
         in: path

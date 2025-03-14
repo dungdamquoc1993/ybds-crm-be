@@ -49,7 +49,7 @@ func (h *OrderHandler) RegisterRoutes(router fiber.Router, authMiddleware fiber.
 
 // CreateOrder godoc
 // @Summary Create a new order
-// @Description Create a new order with items
+// @Description Create a new order with items. Only customer_name and items are required, all other fields are optional.
 // @Tags orders
 // @Accept json
 // @Produce json
@@ -89,6 +89,12 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 		})
 	}
 
+	// Set default values for optional fields
+	paymentMethod := order.PaymentMethod("cash")
+	if req.PaymentMethod != "" {
+		paymentMethod = order.PaymentMethod(req.PaymentMethod)
+	}
+
 	// Convert request items to service items
 	items := make([]services.OrderItemInfo, len(req.Items))
 	for i, item := range req.Items {
@@ -100,7 +106,7 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 
 	// Create order
 	result, err := h.orderService.CreateOrder(
-		order.PaymentMethod(req.PaymentMethod),
+		paymentMethod,
 		items,
 		req.DiscountAmount,
 		req.DiscountReason,
@@ -113,6 +119,7 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 		req.CustomerName,
 		req.CustomerEmail,
 		req.CustomerPhone,
+		req.Notes,
 	)
 
 	if err != nil {
@@ -123,19 +130,103 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 		})
 	}
 
-	// Return response
+	// Get the complete order to return in the response
+	createdOrder, err := h.orderService.GetOrderByID(result.OrderID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(responses.ErrorResponse{
+			Success: false,
+			Message: "Order created but failed to retrieve complete details",
+			Error:   err.Error(),
+		})
+	}
+
+	// Get creator information if available
+	var creatorName string
+	if createdOrder.CreatedBy != nil {
+		// Get user information
+		user, err := h.orderService.UserService.GetUserByID(*createdOrder.CreatedBy)
+		if err == nil {
+			creatorName = user.Username
+		}
+	}
+
+	// Convert items to response format
+	responseItems := make([]responses.OrderItemResponse, len(createdOrder.Items))
+	for i, item := range createdOrder.Items {
+		responseItems[i] = responses.OrderItemResponse{
+			ID:          item.ID,
+			OrderID:     item.OrderID,
+			InventoryID: item.InventoryID,
+			Quantity:    item.Quantity,
+			Price:       item.PriceAtOrder,
+			Subtotal:    item.PriceAtOrder * float64(item.Quantity),
+			CreatedAt:   item.CreatedAt,
+			UpdatedAt:   item.UpdatedAt,
+		}
+
+		// Get inventory details if available
+		inventory, err := h.orderService.ProductService.GetInventoryByID(item.InventoryID)
+		if err == nil && inventory != nil {
+			// Add inventory details
+			responseItems[i].Size = inventory.Size
+			responseItems[i].Color = inventory.Color
+
+			// Get product details if available
+			product, err := h.orderService.ProductService.GetProductByID(inventory.ProductID)
+			if err == nil && product != nil {
+				responseItems[i].ProductID = product.ID
+				responseItems[i].ProductName = product.Name
+
+				// Get price details if available
+				price, err := h.orderService.ProductService.GetCurrentPrice(product.ID)
+				if err == nil && price != nil {
+					responseItems[i].PriceID = price.ID
+					responseItems[i].Currency = price.Currency
+				}
+			}
+		}
+	}
+
+	// Create shipment response if available
+	var shipmentResponse *responses.ShipmentResponse
+	if createdOrder.Shipment != nil {
+		shipmentResponse = &responses.ShipmentResponse{
+			ID:             createdOrder.Shipment.ID,
+			OrderID:        createdOrder.Shipment.OrderID,
+			TrackingNumber: createdOrder.Shipment.TrackingNumber,
+			Carrier:        createdOrder.Shipment.Carrier,
+			CreatedAt:      createdOrder.Shipment.CreatedAt,
+			UpdatedAt:      createdOrder.Shipment.UpdatedAt,
+		}
+	}
+
+	// Return response with complete order information
 	return c.Status(fiber.StatusCreated).JSON(responses.OrderResponse{
 		Success: true,
 		Message: "Order created successfully",
 		Data: responses.OrderDetail{
-			ID:             result.OrderID,
-			Status:         string(result.Status),
-			Total:          result.Total,
-			DiscountAmount: result.DiscountAmount,
-			DiscountReason: result.DiscountReason,
-			FinalTotal:     result.FinalTotal,
-			CreatedBy:      *result.CreatedBy,
-			CreatedByName:  "", // Would need to fetch this from user service
+			ID:               createdOrder.ID,
+			CustomerName:     createdOrder.CustomerName,
+			CustomerEmail:    createdOrder.CustomerEmail,
+			CustomerPhone:    createdOrder.CustomerPhone,
+			ShippingAddress:  createdOrder.ShippingAddress,
+			ShippingWard:     createdOrder.ShippingWard,
+			ShippingDistrict: createdOrder.ShippingDistrict,
+			ShippingCity:     createdOrder.ShippingCity,
+			ShippingCountry:  createdOrder.ShippingCountry,
+			PaymentMethod:    string(createdOrder.PaymentMethod),
+			Status:           string(createdOrder.OrderStatus),
+			Notes:            createdOrder.Notes,
+			Total:            createdOrder.TotalAmount,
+			DiscountAmount:   createdOrder.DiscountAmount,
+			DiscountReason:   createdOrder.DiscountReason,
+			FinalTotal:       createdOrder.FinalTotalAmount,
+			CreatedBy:        *createdOrder.CreatedBy,
+			CreatedByName:    creatorName,
+			Items:            responseItems,
+			Shipment:         shipmentResponse,
+			CreatedAt:        createdOrder.CreatedAt,
+			UpdatedAt:        createdOrder.UpdatedAt,
 		},
 	})
 }
@@ -162,6 +253,14 @@ func (h *OrderHandler) GetOrders(c *fiber.Ctx) error {
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	pageSize, _ := strconv.Atoi(c.Query("page_size", "10"))
 
+	// Ensure page and pageSize are valid
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+
 	// Parse filters
 	filters := make(map[string]interface{})
 
@@ -176,8 +275,26 @@ func (h *OrderHandler) GetOrders(c *fiber.Ctx) error {
 		}
 	}
 
-	// Get orders
-	orders, total, err := h.orderService.GetAllOrders(page, pageSize, filters)
+	// First, get the total count to calculate total pages
+	_, total, err := h.orderService.GetAllOrders(1, 1, filters)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(responses.ErrorResponse{
+			Success: false,
+			Message: "Failed to retrieve orders count",
+			Error:   err.Error(),
+		})
+	}
+
+	// Calculate total pages
+	totalPages := (total + int64(pageSize) - 1) / int64(pageSize)
+
+	// Adjust page if it exceeds total pages
+	if totalPages > 0 && int64(page) > totalPages {
+		page = int(totalPages)
+	}
+
+	// Get orders with adjusted pagination
+	orders, _, err := h.orderService.GetAllOrders(page, pageSize, filters)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(responses.ErrorResponse{
 			Success: false,
@@ -248,22 +365,20 @@ func (h *OrderHandler) GetOrders(c *fiber.Ctx) error {
 		}
 
 		// Get creator information if available
-		var creatorName, creatorEmail, creatorPhone string
+		var creatorName string
 		if o.CreatedBy != nil {
 			// Get user information
 			user, err := h.orderService.UserService.GetUserByID(*o.CreatedBy)
 			if err == nil {
 				creatorName = user.Username
-				creatorEmail = user.Email
-				creatorPhone = user.Phone
 			}
 		}
 
 		orderDetails[i] = responses.OrderDetail{
 			ID:               o.ID,
-			CustomerName:     creatorName,
-			CustomerEmail:    creatorEmail,
-			CustomerPhone:    creatorPhone,
+			CustomerName:     o.CustomerName,
+			CustomerEmail:    o.CustomerEmail,
+			CustomerPhone:    o.CustomerPhone,
 			ShippingAddress:  o.ShippingAddress,
 			ShippingWard:     o.ShippingWard,
 			ShippingDistrict: o.ShippingDistrict,
@@ -271,7 +386,7 @@ func (h *OrderHandler) GetOrders(c *fiber.Ctx) error {
 			ShippingCountry:  o.ShippingCountry,
 			PaymentMethod:    string(o.PaymentMethod),
 			Status:           string(o.OrderStatus),
-			Notes:            "", // Not in the model, would need to add
+			Notes:            o.Notes,
 			Total:            o.TotalAmount,
 			DiscountAmount:   o.DiscountAmount,
 			DiscountReason:   o.DiscountReason,
@@ -293,7 +408,7 @@ func (h *OrderHandler) GetOrders(c *fiber.Ctx) error {
 		Total:      total,
 		Page:       page,
 		PageSize:   pageSize,
-		TotalPages: (total + int64(pageSize) - 1) / int64(pageSize),
+		TotalPages: int64(totalPages),
 	})
 }
 
@@ -391,14 +506,12 @@ func (h *OrderHandler) GetOrderByID(c *fiber.Ctx) error {
 	}
 
 	// Get creator information if available
-	var creatorName, creatorEmail, creatorPhone string
+	var creatorName string
 	if o.CreatedBy != nil {
 		// Get user information
 		user, err := h.orderService.UserService.GetUserByID(*o.CreatedBy)
 		if err == nil {
 			creatorName = user.Username
-			creatorEmail = user.Email
-			creatorPhone = user.Phone
 		}
 	}
 
@@ -406,8 +519,8 @@ func (h *OrderHandler) GetOrderByID(c *fiber.Ctx) error {
 	orderDetail := responses.OrderDetail{
 		ID:               o.ID,
 		CustomerName:     creatorName,
-		CustomerEmail:    creatorEmail,
-		CustomerPhone:    creatorPhone,
+		CustomerEmail:    o.CustomerEmail,
+		CustomerPhone:    o.CustomerPhone,
 		ShippingAddress:  o.ShippingAddress,
 		ShippingWard:     o.ShippingWard,
 		ShippingDistrict: o.ShippingDistrict,
@@ -415,7 +528,7 @@ func (h *OrderHandler) GetOrderByID(c *fiber.Ctx) error {
 		ShippingCountry:  o.ShippingCountry,
 		PaymentMethod:    string(o.PaymentMethod),
 		Status:           string(o.OrderStatus),
-		Notes:            "", // Not in the model, would need to add
+		Notes:            o.Notes,
 		Total:            o.TotalAmount,
 		DiscountAmount:   o.DiscountAmount,
 		DiscountReason:   o.DiscountReason,
@@ -438,7 +551,7 @@ func (h *OrderHandler) GetOrderByID(c *fiber.Ctx) error {
 
 // UpdateOrderStatus godoc
 // @Summary Update an order's status
-// @Description Update the status of an order
+// @Description Update the status of an order. Status can be changed to 'canceled' from any state except 'returned', 'return_processing', or 'delivered'.
 // @Tags orders
 // @Accept json
 // @Produce json
@@ -482,7 +595,7 @@ func (h *OrderHandler) UpdateOrderStatus(c *fiber.Ctx) error {
 	}
 
 	// Update order status
-	result, err := h.orderService.UpdateOrderStatus(id, order.OrderStatus(req.Status))
+	_, err = h.orderService.UpdateOrderStatus(id, order.OrderStatus(req.Status))
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(responses.ErrorResponse{
 			Success: false,
@@ -491,19 +604,103 @@ func (h *OrderHandler) UpdateOrderStatus(c *fiber.Ctx) error {
 		})
 	}
 
-	// Return response
+	// Get the updated order to return complete information
+	updatedOrder, err := h.orderService.GetOrderByID(id)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(responses.ErrorResponse{
+			Success: false,
+			Message: "Failed to retrieve updated order",
+			Error:   err.Error(),
+		})
+	}
+
+	// Get creator information if available
+	var creatorName string
+	if updatedOrder.CreatedBy != nil {
+		// Get user information
+		user, err := h.orderService.UserService.GetUserByID(*updatedOrder.CreatedBy)
+		if err == nil {
+			creatorName = user.Username
+		}
+	}
+
+	// Convert items to response format
+	items := make([]responses.OrderItemResponse, len(updatedOrder.Items))
+	for i, item := range updatedOrder.Items {
+		items[i] = responses.OrderItemResponse{
+			ID:          item.ID,
+			OrderID:     item.OrderID,
+			InventoryID: item.InventoryID,
+			Quantity:    item.Quantity,
+			Price:       item.PriceAtOrder,
+			Subtotal:    item.PriceAtOrder * float64(item.Quantity),
+			CreatedAt:   item.CreatedAt,
+			UpdatedAt:   item.UpdatedAt,
+		}
+
+		// Get inventory details if available
+		inventory, err := h.orderService.ProductService.GetInventoryByID(item.InventoryID)
+		if err == nil && inventory != nil {
+			// Add inventory details
+			items[i].Size = inventory.Size
+			items[i].Color = inventory.Color
+
+			// Get product details if available
+			product, err := h.orderService.ProductService.GetProductByID(inventory.ProductID)
+			if err == nil && product != nil {
+				items[i].ProductID = product.ID
+				items[i].ProductName = product.Name
+
+				// Get price details if available
+				price, err := h.orderService.ProductService.GetCurrentPrice(product.ID)
+				if err == nil && price != nil {
+					items[i].PriceID = price.ID
+					items[i].Currency = price.Currency
+				}
+			}
+		}
+	}
+
+	// Create shipment response if available
+	var shipmentResponse *responses.ShipmentResponse
+	if updatedOrder.Shipment != nil {
+		shipmentResponse = &responses.ShipmentResponse{
+			ID:             updatedOrder.Shipment.ID,
+			OrderID:        updatedOrder.Shipment.OrderID,
+			TrackingNumber: updatedOrder.Shipment.TrackingNumber,
+			Carrier:        updatedOrder.Shipment.Carrier,
+			CreatedAt:      updatedOrder.Shipment.CreatedAt,
+			UpdatedAt:      updatedOrder.Shipment.UpdatedAt,
+		}
+	}
+
+	// Return response with complete order information
 	return c.Status(fiber.StatusOK).JSON(responses.OrderResponse{
 		Success: true,
 		Message: "Order status updated successfully",
 		Data: responses.OrderDetail{
-			ID:             result.OrderID,
-			Status:         string(result.Status),
-			Total:          result.Total,
-			DiscountAmount: result.DiscountAmount,
-			DiscountReason: result.DiscountReason,
-			FinalTotal:     result.FinalTotal,
-			CreatedBy:      *result.CreatedBy,
-			CreatedByName:  "", // Would need to fetch this from user service
+			ID:               updatedOrder.ID,
+			CustomerName:     updatedOrder.CustomerName,
+			CustomerEmail:    updatedOrder.CustomerEmail,
+			CustomerPhone:    updatedOrder.CustomerPhone,
+			ShippingAddress:  updatedOrder.ShippingAddress,
+			ShippingWard:     updatedOrder.ShippingWard,
+			ShippingDistrict: updatedOrder.ShippingDistrict,
+			ShippingCity:     updatedOrder.ShippingCity,
+			ShippingCountry:  updatedOrder.ShippingCountry,
+			PaymentMethod:    string(updatedOrder.PaymentMethod),
+			Status:           string(updatedOrder.OrderStatus),
+			Notes:            updatedOrder.Notes,
+			Total:            updatedOrder.TotalAmount,
+			DiscountAmount:   updatedOrder.DiscountAmount,
+			DiscountReason:   updatedOrder.DiscountReason,
+			FinalTotal:       updatedOrder.FinalTotalAmount,
+			CreatedBy:        *updatedOrder.CreatedBy,
+			CreatedByName:    creatorName,
+			Items:            items,
+			Shipment:         shipmentResponse,
+			CreatedAt:        updatedOrder.CreatedAt,
+			UpdatedAt:        updatedOrder.UpdatedAt,
 		},
 	})
 }
@@ -922,14 +1119,12 @@ func (h *OrderHandler) UpdateOrderDetails(c *fiber.Ctx) error {
 	}
 
 	// Get creator information if available
-	var creatorName, creatorEmail, creatorPhone string
+	var creatorName string
 	if updatedOrder.CreatedBy != nil {
 		// Get user information
 		user, err := h.orderService.UserService.GetUserByID(*updatedOrder.CreatedBy)
 		if err == nil {
 			creatorName = user.Username
-			creatorEmail = user.Email
-			creatorPhone = user.Phone
 		}
 	}
 
@@ -989,9 +1184,9 @@ func (h *OrderHandler) UpdateOrderDetails(c *fiber.Ctx) error {
 		Message: "Order details updated successfully",
 		Data: responses.OrderDetail{
 			ID:               updatedOrder.ID,
-			CustomerName:     creatorName,
-			CustomerEmail:    creatorEmail,
-			CustomerPhone:    creatorPhone,
+			CustomerName:     updatedOrder.CustomerName,
+			CustomerEmail:    updatedOrder.CustomerEmail,
+			CustomerPhone:    updatedOrder.CustomerPhone,
 			ShippingAddress:  updatedOrder.ShippingAddress,
 			ShippingWard:     updatedOrder.ShippingWard,
 			ShippingDistrict: updatedOrder.ShippingDistrict,
@@ -999,13 +1194,13 @@ func (h *OrderHandler) UpdateOrderDetails(c *fiber.Ctx) error {
 			ShippingCountry:  updatedOrder.ShippingCountry,
 			PaymentMethod:    string(updatedOrder.PaymentMethod),
 			Status:           string(updatedOrder.OrderStatus),
-			Notes:            "", // Not in the model, would need to add
+			Notes:            updatedOrder.Notes,
 			Total:            updatedOrder.TotalAmount,
 			DiscountAmount:   updatedOrder.DiscountAmount,
 			DiscountReason:   updatedOrder.DiscountReason,
 			FinalTotal:       updatedOrder.FinalTotalAmount,
 			CreatedBy:        *updatedOrder.CreatedBy,
-			CreatedByName:    creatorName, // Use the same name as customer name
+			CreatedByName:    creatorName,
 			Items:            items,
 			Shipment:         shipmentResponse,
 			CreatedAt:        updatedOrder.CreatedAt,
@@ -1070,7 +1265,7 @@ func (h *OrderHandler) UpdateShipment(c *fiber.Ctx) error {
 	}
 
 	// Get updated order to return in response
-	order, err := h.orderService.GetOrderByID(id)
+	updatedOrder, err := h.orderService.GetOrderByID(id)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(responses.ErrorResponse{
 			Success: false,
@@ -1081,27 +1276,91 @@ func (h *OrderHandler) UpdateShipment(c *fiber.Ctx) error {
 
 	// Get creator information if available
 	var creatorName string
-	if order.CreatedBy != nil {
+	if updatedOrder.CreatedBy != nil {
 		// Get user information
-		user, err := h.orderService.UserService.GetUserByID(*order.CreatedBy)
+		user, err := h.orderService.UserService.GetUserByID(*updatedOrder.CreatedBy)
 		if err == nil {
 			creatorName = user.Username
 		}
 	}
 
-	// Return response
+	// Convert items to response format
+	items := make([]responses.OrderItemResponse, len(updatedOrder.Items))
+	for i, item := range updatedOrder.Items {
+		items[i] = responses.OrderItemResponse{
+			ID:          item.ID,
+			OrderID:     item.OrderID,
+			InventoryID: item.InventoryID,
+			Quantity:    item.Quantity,
+			Price:       item.PriceAtOrder,
+			Subtotal:    item.PriceAtOrder * float64(item.Quantity),
+			CreatedAt:   item.CreatedAt,
+			UpdatedAt:   item.UpdatedAt,
+		}
+
+		// Get inventory details if available
+		inventory, err := h.orderService.ProductService.GetInventoryByID(item.InventoryID)
+		if err == nil && inventory != nil {
+			// Add inventory details
+			items[i].Size = inventory.Size
+			items[i].Color = inventory.Color
+
+			// Get product details if available
+			product, err := h.orderService.ProductService.GetProductByID(inventory.ProductID)
+			if err == nil && product != nil {
+				items[i].ProductID = product.ID
+				items[i].ProductName = product.Name
+
+				// Get price details if available
+				price, err := h.orderService.ProductService.GetCurrentPrice(product.ID)
+				if err == nil && price != nil {
+					items[i].PriceID = price.ID
+					items[i].Currency = price.Currency
+				}
+			}
+		}
+	}
+
+	// Create shipment response if available
+	var shipmentResponse *responses.ShipmentResponse
+	if updatedOrder.Shipment != nil {
+		shipmentResponse = &responses.ShipmentResponse{
+			ID:             updatedOrder.Shipment.ID,
+			OrderID:        updatedOrder.Shipment.OrderID,
+			TrackingNumber: updatedOrder.Shipment.TrackingNumber,
+			Carrier:        updatedOrder.Shipment.Carrier,
+			CreatedAt:      updatedOrder.Shipment.CreatedAt,
+			UpdatedAt:      updatedOrder.Shipment.UpdatedAt,
+		}
+	}
+
+	// Return response with complete order information
 	return c.Status(fiber.StatusOK).JSON(responses.OrderResponse{
 		Success: true,
 		Message: "Shipment details updated successfully",
 		Data: responses.OrderDetail{
-			ID:             order.ID,
-			Status:         string(order.OrderStatus),
-			Total:          order.TotalAmount,
-			DiscountAmount: order.DiscountAmount,
-			DiscountReason: order.DiscountReason,
-			FinalTotal:     order.FinalTotalAmount,
-			CreatedBy:      *order.CreatedBy,
-			CreatedByName:  creatorName,
+			ID:               updatedOrder.ID,
+			CustomerName:     updatedOrder.CustomerName,
+			CustomerEmail:    updatedOrder.CustomerEmail,
+			CustomerPhone:    updatedOrder.CustomerPhone,
+			ShippingAddress:  updatedOrder.ShippingAddress,
+			ShippingWard:     updatedOrder.ShippingWard,
+			ShippingDistrict: updatedOrder.ShippingDistrict,
+			ShippingCity:     updatedOrder.ShippingCity,
+			ShippingCountry:  updatedOrder.ShippingCountry,
+			PaymentMethod:    string(updatedOrder.PaymentMethod),
+			Status:           string(updatedOrder.OrderStatus),
+			Notes:            updatedOrder.Notes,
+			Total:            updatedOrder.TotalAmount,
+			DiscountAmount:   updatedOrder.DiscountAmount,
+			DiscountReason:   updatedOrder.DiscountReason,
+			FinalTotal:       updatedOrder.FinalTotalAmount,
+			CreatedBy:        *updatedOrder.CreatedBy,
+			CreatedByName:    creatorName,
+			Items:            items,
+			Shipment:         shipmentResponse,
+			CreatedAt:        updatedOrder.CreatedAt,
+			UpdatedAt:        updatedOrder.UpdatedAt,
 		},
 	})
 }

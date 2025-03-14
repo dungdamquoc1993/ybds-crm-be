@@ -26,12 +26,12 @@ func (i *OrderItemInfo) Validate() error {
 
 // CreateOrderRequest represents a request to create a new order
 type CreateOrderRequest struct {
-	PaymentMethod  string          `json:"payment_method"`
-	Status         string          `json:"status"`
-	Notes          string          `json:"notes"`
+	PaymentMethod  string          `json:"payment_method" example:"cash"`
+	Status         string          `json:"status" example:"pending_confirmation"`
+	Notes          string          `json:"notes" example:"Please deliver in the morning"`
 	DiscountAmount float64         `json:"discount_amount" example:"10.50"`
 	DiscountReason string          `json:"discount_reason" example:"Loyalty discount"`
-	Items          []OrderItemInfo `json:"items"`
+	Items          []OrderItemInfo `json:"items" required:"true"`
 	// Shipping address information
 	ShippingAddress  string `json:"shipping_address" example:"123 Main St"`
 	ShippingWard     string `json:"shipping_ward" example:"Ward 1"`
@@ -39,16 +39,17 @@ type CreateOrderRequest struct {
 	ShippingCity     string `json:"shipping_city" example:"Ho Chi Minh City"`
 	ShippingCountry  string `json:"shipping_country" example:"Vietnam"`
 	// Customer information
-	CustomerName  string `json:"customer_name" example:"John Doe"`
+	CustomerName  string `json:"customer_name" example:"John Doe" required:"true"`
 	CustomerEmail string `json:"customer_email" example:"john@example.com"`
 	CustomerPhone string `json:"customer_phone" example:"1234567890"`
 }
 
 // Validate validates the create order request
 func (r *CreateOrderRequest) Validate() error {
-	if r.PaymentMethod == "" {
-		return errors.New("payment method is required")
+	if r.CustomerName == "" {
+		return errors.New("customer name is required")
 	}
+
 	if len(r.Items) == 0 {
 		return errors.New("at least one item is required")
 	}

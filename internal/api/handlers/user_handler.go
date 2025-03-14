@@ -52,8 +52,34 @@ func (h *UserHandler) GetUsers(c *fiber.Ctx) error {
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	pageSize, _ := strconv.Atoi(c.Query("page_size", "10"))
 
+	// Ensure page and pageSize are valid
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+
+	// First, get the total count to calculate total pages
+	_, total, err := h.userService.GetAllUsers(1, 1)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(responses.ErrorResponse{
+			Success: false,
+			Message: "Failed to retrieve users count",
+			Error:   err.Error(),
+		})
+	}
+
+	// Calculate total pages
+	totalPages := (total + int64(pageSize) - 1) / int64(pageSize)
+
+	// Adjust page if it exceeds total pages
+	if totalPages > 0 && int64(page) > totalPages {
+		page = int(totalPages)
+	}
+
 	// Get users from service
-	users, total, err := h.userService.GetAllUsers(page, pageSize)
+	users, _, err := h.userService.GetAllUsers(page, pageSize)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(responses.ErrorResponse{
 			Success: false,
@@ -71,7 +97,7 @@ func (h *UserHandler) GetUsers(c *fiber.Ctx) error {
 			"total":       total,
 			"page":        page,
 			"page_size":   pageSize,
-			"total_pages": (total + int64(pageSize) - 1) / int64(pageSize),
+			"total_pages": totalPages,
 		},
 	})
 }

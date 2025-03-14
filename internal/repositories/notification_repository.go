@@ -94,12 +94,23 @@ func (r *NotificationRepository) MarkAllNotificationsAsRead(recipientID uuid.UUI
 // GetChannelByID retrieves a channel by ID
 func (r *NotificationRepository) GetChannelByID(id uuid.UUID) (*notification.Channel, error) {
 	var channel notification.Channel
-	err := r.db.Where("id = ?", id).First(&channel).Error
+	err := r.db.Joins("JOIN notifications ON channels.notification_id = notifications.id").
+		Where("channels.id = ? AND notifications.deleted_at IS NULL", id).
+		First(&channel).Error
 	return &channel, err
 }
 
 // GetChannelsByNotificationID retrieves all channels for a notification
 func (r *NotificationRepository) GetChannelsByNotificationID(notificationID uuid.UUID) ([]notification.Channel, error) {
+	// Check if notification exists and is not deleted
+	var count int64
+	if err := r.db.Model(&notification.Notification{}).Where("id = ? AND deleted_at IS NULL", notificationID).Count(&count).Error; err != nil {
+		return nil, err
+	}
+	if count == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+
 	var channels []notification.Channel
 	err := r.db.Where("notification_id = ?", notificationID).Find(&channels).Error
 	return channels, err

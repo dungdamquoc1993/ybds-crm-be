@@ -26,14 +26,12 @@ const (
 	OrderConfirmed OrderStatus = "confirmed"
 	// OrderShipmentRequested means a shipment has been requested for the order
 	OrderShipmentRequested OrderStatus = "shipment_requested"
-	// OrderPacking means the order is being packed
-	OrderPacking OrderStatus = "packing"
+	// OrderPacked means the order has been packed and is ready for shipping
+	OrderPacked OrderStatus = "packed"
 	// OrderShipped means the order has been shipped
 	OrderShipped OrderStatus = "shipped"
 	// OrderDelivered means the order has been delivered
 	OrderDelivered OrderStatus = "delivered"
-	// OrderReturnRequested means a return has been requested for the order
-	OrderReturnRequested OrderStatus = "return_requested"
 	// OrderReturnProcessing means the order return is being processed
 	OrderReturnProcessing OrderStatus = "return_processing"
 	// OrderReturned means the order has been returned
@@ -51,6 +49,7 @@ type Order struct {
 	DiscountReason   string        `gorm:"column:discount_reason;type:varchar(255)" json:"discount_reason"`
 	FinalTotalAmount float64       `gorm:"column:final_total_amount;type:decimal(10,2);not null" json:"final_total_amount"`
 	OrderStatus      OrderStatus   `gorm:"column:order_status;type:varchar(50);not null;default:'pending_confirmation';index" json:"order_status"`
+	Notes            string        `gorm:"column:notes;type:text" json:"notes"`
 	// Shipping address fields
 	ShippingAddress  string `gorm:"column:shipping_address;type:text" json:"shipping_address"`
 	ShippingWard     string `gorm:"column:shipping_ward;type:varchar(100)" json:"shipping_ward"`

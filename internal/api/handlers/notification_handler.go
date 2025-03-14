@@ -83,6 +83,14 @@ func (h *NotificationHandler) GetNotifications(c *fiber.Ctx) error {
 		}
 	}
 
+	// Ensure page and pageSize are valid
+	if req.Page < 1 {
+		req.Page = 1
+	}
+	if req.PageSize < 1 {
+		req.PageSize = 10
+	}
+
 	if unreadOnlyStr := c.Query("unread_only"); unreadOnlyStr == "true" {
 		req.UnreadOnly = true
 	}
@@ -116,6 +124,15 @@ func (h *NotificationHandler) GetNotifications(c *fiber.Ctx) error {
 
 	// Manual pagination since the service doesn't support it
 	total := int64(len(notifications))
+
+	// Calculate total pages
+	totalPages := (total + int64(req.PageSize) - 1) / int64(req.PageSize)
+
+	// Adjust page if it exceeds total pages
+	if totalPages > 0 && int64(req.Page) > totalPages {
+		req.Page = int(totalPages)
+	}
+
 	start := (req.Page - 1) * req.PageSize
 	end := start + req.PageSize
 	if start >= len(notifications) {
@@ -160,7 +177,7 @@ func (h *NotificationHandler) GetNotifications(c *fiber.Ctx) error {
 		Total:      total,
 		Page:       req.Page,
 		PageSize:   req.PageSize,
-		TotalPages: int((total + int64(req.PageSize) - 1) / int64(req.PageSize)),
+		TotalPages: int(totalPages),
 	})
 }
 

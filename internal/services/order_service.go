@@ -75,6 +75,7 @@ func (s *OrderService) CreateOrder(
 	customerName string,
 	customerEmail string,
 	customerPhone string,
+	notes string,
 ) (*OrderResult, error) {
 	// Validate input
 	if createdByID == nil {
@@ -132,6 +133,7 @@ func (s *OrderService) CreateOrder(
 		DiscountAmount:   discountAmount,
 		DiscountReason:   discountReason,
 		FinalTotalAmount: 0, // Will be calculated later
+		Notes:            notes,
 		// Shipping address fields
 		ShippingAddress:  shippingAddress,
 		ShippingWard:     shippingWard,
@@ -378,8 +380,8 @@ func (s *OrderService) handleInventoryForStatusChange(tx *gorm.DB, o *order.Orde
 
 	// Handle inventory changes based on status transition
 	switch {
-	// When transitioning to packing status, reduce inventory
-	case newStatus == order.OrderPacking:
+	// When transitioning to packed status, reduce inventory
+	case newStatus == order.OrderPacked:
 		for _, item := range items {
 			if err := s.ProductService.ReserveInventory(item.InventoryID, item.Quantity); err != nil {
 				return err
@@ -394,8 +396,8 @@ func (s *OrderService) handleInventoryForStatusChange(tx *gorm.DB, o *order.Orde
 			}
 		}
 
-	// When canceling an order that was in packing or shipped status, increase inventory
-	case newStatus == order.OrderCanceled && (oldStatus == order.OrderPacking || oldStatus == order.OrderShipped):
+	// When canceling an order that was in packed or shipped status, increase inventory
+	case newStatus == order.OrderCanceled && (oldStatus == order.OrderPacked || oldStatus == order.OrderShipped):
 		for _, item := range items {
 			if err := s.ProductService.ReleaseInventory(item.InventoryID, item.Quantity); err != nil {
 				return err
@@ -408,7 +410,15 @@ func (s *OrderService) handleInventoryForStatusChange(tx *gorm.DB, o *order.Orde
 
 // isValidStatusTransition checks if a status transition is valid
 func isValidStatusTransition(oldStatus, newStatus order.OrderStatus) bool {
-	// Define valid transitions
+	// Allow transition to canceled from most statuses except a few
+	if newStatus == order.OrderCanceled {
+		// Cannot cancel if already returned, in return processing, or delivered
+		return oldStatus != order.OrderReturned &&
+			oldStatus != order.OrderReturnProcessing &&
+			oldStatus != order.OrderDelivered
+	}
+
+	// Define valid transitions for normal flow
 	validTransitions := map[order.OrderStatus][]order.OrderStatus{
 		order.OrderPendingConfirmation: {
 			order.OrderConfirmed,
@@ -416,32 +426,32 @@ func isValidStatusTransition(oldStatus, newStatus order.OrderStatus) bool {
 		},
 		order.OrderConfirmed: {
 			order.OrderShipmentRequested,
-			order.OrderPacking,
+			order.OrderPacked,
 			order.OrderCanceled,
 		},
 		order.OrderShipmentRequested: {
-			order.OrderPacking,
+			order.OrderPacked,
 			order.OrderCanceled,
 		},
-		order.OrderPacking: {
+		order.OrderPacked: {
 			order.OrderShipped,
 			order.OrderCanceled,
 		},
 		order.OrderShipped: {
 			order.OrderDelivered,
-			order.OrderReturnRequested,
 			order.OrderCanceled,
 		},
 		order.OrderDelivered: {
-			order.OrderReturnRequested,
-		},
-		order.OrderReturnRequested: {
 			order.OrderReturnProcessing,
-			order.OrderCanceled,
 		},
 		order.OrderReturnProcessing: {
 			order.OrderReturned,
-			order.OrderCanceled,
+		},
+		order.OrderReturned: {
+			// No further transitions allowed
+		},
+		order.OrderCanceled: {
+			// No further transitions allowed
 		},
 	}
 
@@ -544,7 +554,7 @@ func (s *OrderService) CreateShipment(orderID uuid.UUID, trackingNumber, carrier
 	}
 
 	// Check if order status allows shipment
-	if o.OrderStatus != order.OrderConfirmed && o.OrderStatus != order.OrderShipmentRequested && o.OrderStatus != order.OrderPacking {
+	if o.OrderStatus != order.OrderConfirmed && o.OrderStatus != order.OrderShipmentRequested && o.OrderStatus != order.OrderPacked {
 		return fmt.Errorf("order status does not allow shipment creation")
 	}
 
@@ -847,6 +857,11 @@ func (s *OrderService) UpdateOrderDetails(
 	// Update fields if provided
 	if paymentMethod != "" {
 		o.PaymentMethod = paymentMethod
+	}
+
+	// Update notes if provided
+	if notes != "" {
+		o.Notes = notes
 	}
 
 	// Update discount if provided

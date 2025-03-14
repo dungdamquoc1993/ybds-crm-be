@@ -95,13 +95,26 @@ func (r *ProductRepository) DeleteProduct(id uuid.UUID) error {
 // GetInventoryByID retrieves an inventory by ID
 func (r *ProductRepository) GetInventoryByID(id uuid.UUID) (*product.Inventory, error) {
 	var inventory product.Inventory
-	err := r.db.Where("id = ?", id).First(&inventory).Error
+	// Join with products table and check if product is not deleted
+	err := r.db.Joins("JOIN products ON inventory.product_id = products.id").
+		Where("inventory.id = ? AND products.deleted_at IS NULL", id).
+		First(&inventory).Error
 	return &inventory, err
 }
 
 // GetInventoriesByProductID retrieves all inventories for a product
 func (r *ProductRepository) GetInventoriesByProductID(productID uuid.UUID) ([]product.Inventory, error) {
 	var inventories []product.Inventory
+	// Check if product exists and is not deleted
+	var count int64
+	if err := r.db.Model(&product.Product{}).Where("id = ? AND deleted_at IS NULL", productID).Count(&count).Error; err != nil {
+		return nil, err
+	}
+	if count == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+
+	// Get inventories for the product
 	err := r.db.Where("product_id = ?", productID).Find(&inventories).Error
 	return inventories, err
 }
@@ -124,13 +137,25 @@ func (r *ProductRepository) DeleteInventory(id uuid.UUID) error {
 // GetPriceByID retrieves a price by ID
 func (r *ProductRepository) GetPriceByID(id uuid.UUID) (*product.Price, error) {
 	var price product.Price
-	err := r.db.Where("id = ?", id).First(&price).Error
+	err := r.db.Joins("JOIN products ON prices.product_id = products.id").
+		Where("prices.id = ? AND products.deleted_at IS NULL", id).
+		First(&price).Error
 	return &price, err
 }
 
 // GetPricesByProductID retrieves all prices for a product
 func (r *ProductRepository) GetPricesByProductID(productID uuid.UUID) ([]product.Price, error) {
 	var prices []product.Price
+
+	// Check if product exists and is not deleted
+	var count int64
+	if err := r.db.Model(&product.Product{}).Where("id = ? AND deleted_at IS NULL", productID).Count(&count).Error; err != nil {
+		return nil, err
+	}
+	if count == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+
 	err := r.db.Where("product_id = ?", productID).Find(&prices).Error
 	return prices, err
 }
@@ -139,6 +164,15 @@ func (r *ProductRepository) GetPricesByProductID(productID uuid.UUID) ([]product
 func (r *ProductRepository) GetCurrentPrice(productID uuid.UUID) (*product.Price, error) {
 	var price product.Price
 	now := time.Now()
+
+	// Check if product exists and is not deleted
+	var count int64
+	if err := r.db.Model(&product.Product{}).Where("id = ? AND deleted_at IS NULL", productID).Count(&count).Error; err != nil {
+		return nil, err
+	}
+	if count == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
 
 	err := r.db.Where("product_id = ? AND start_date <= ? AND (end_date IS NULL OR end_date > ?)",
 		productID, now, now).

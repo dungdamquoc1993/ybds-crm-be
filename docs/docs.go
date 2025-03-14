@@ -446,7 +446,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Create a new order with items",
+                "description": "Create a new order with items. Only customer_name and items are required, all other fields are optional.",
                 "consumes": [
                     "application/json"
                 ],
@@ -914,7 +914,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Update the status of an order",
+                "description": "Update the status of an order. Status can be changed to 'canceled' from any state except 'returned', 'return_processing', or 'delivered'.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2363,10 +2363,12 @@ const docTemplate = `{
                     }
                 },
                 "notes": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Please deliver in the morning"
                 },
                 "payment_method": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "cash"
                 },
                 "shipping_address": {
                     "description": "Shipping address information",
@@ -2390,7 +2392,8 @@ const docTemplate = `{
                     "example": "Ward 1"
                 },
                 "status": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "pending_confirmation"
                 }
             }
         },
