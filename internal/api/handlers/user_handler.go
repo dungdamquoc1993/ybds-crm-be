@@ -6,6 +6,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/ybds/internal/api/responses"
+	"github.com/ybds/internal/models/account"
 	"github.com/ybds/internal/services"
 	"gorm.io/gorm"
 )
@@ -31,9 +32,29 @@ func (h *UserHandler) RegisterRoutes(router fiber.Router, authMiddleware fiber.H
 	users.Get("/:id", h.GetUserByID)
 }
 
+// convertUserToResponse converts a user model to a user response
+func convertUserToResponse(user *account.User) responses.UserDetailResponse {
+	// Extract role names
+	roles := make([]string, 0, len(user.Roles))
+	for _, role := range user.Roles {
+		roles = append(roles, string(role.Name))
+	}
+
+	return responses.UserDetailResponse{
+		ID:        user.ID,
+		Username:  user.Username,
+		Email:     user.Email,
+		Phone:     user.Phone,
+		IsActive:  user.IsActive,
+		Roles:     roles,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+	}
+}
+
 // GetUsers godoc
 // @Summary Get all users with their relationships
-// @Description Get a list of all users with their addresses and roles
+// @Description Get a list of all users with their roles
 // @Tags users
 // @Accept json
 // @Produce json
@@ -88,28 +109,32 @@ func (h *UserHandler) GetUsers(c *fiber.Ctx) error {
 		})
 	}
 
+	// Convert users to response format
+	userResponses := make([]responses.UserDetailResponse, len(users))
+	for i, user := range users {
+		userResponses[i] = convertUserToResponse(&user)
+	}
+
 	// Return response
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"success": true,
-		"message": "Users retrieved successfully",
-		"data": fiber.Map{
-			"users":       users,
-			"total":       total,
-			"page":        page,
-			"page_size":   pageSize,
-			"total_pages": totalPages,
-		},
+	return c.Status(fiber.StatusOK).JSON(responses.UsersResponse{
+		Success:    true,
+		Message:    "Users retrieved successfully",
+		Users:      userResponses,
+		Total:      total,
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: int(totalPages),
 	})
 }
 
 // GetUserByID godoc
 // @Summary Get a user by ID with all relationships
-// @Description Get a specific user with their addresses and roles
+// @Description Get a specific user with their roles
 // @Tags users
 // @Accept json
 // @Produce json
 // @Param id path string true "User ID"
-// @Success 200 {object} responses.UserDetailResponse
+// @Success 200 {object} responses.SingleUserResponse
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
@@ -137,10 +162,13 @@ func (h *UserHandler) GetUserByID(c *fiber.Ctx) error {
 		})
 	}
 
+	// Convert to response format
+	userResponse := convertUserToResponse(user)
+
 	// Return response
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"success": true,
-		"message": "User retrieved successfully",
-		"data":    user,
+	return c.Status(fiber.StatusOK).JSON(responses.SingleUserResponse{
+		Success: true,
+		Message: "User retrieved successfully",
+		Data:    userResponse,
 	})
 }
