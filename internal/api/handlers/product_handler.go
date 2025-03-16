@@ -100,18 +100,6 @@ func (h *ProductHandler) RegisterRoutes(router fiber.Router, authMiddleware fibe
 // @Router /api/products [post]
 // @Security ApiKeyAuth
 func (h *ProductHandler) CreateProduct(c *fiber.Ctx) error {
-	formData, err := c.MultipartForm()
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": err.Error(),
-		})
-	}
-
-	// In toàn bộ các tham số ra terminal (console)
-	for key, values := range formData.Value {
-		fmt.Printf("%s: %v\n", key, values)
-	}
-
 	// Parse form fields
 	name := c.FormValue("name")
 	description := c.FormValue("description")
