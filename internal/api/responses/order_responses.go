@@ -8,21 +8,22 @@ import (
 
 // OrderItemResponse represents an order item in responses
 type OrderItemResponse struct {
-	ID          uuid.UUID `json:"id"`
-	OrderID     uuid.UUID `json:"order_id"`
-	ProductID   uuid.UUID `json:"product_id"`
-	ProductName string    `json:"product_name"`
-	InventoryID uuid.UUID `json:"inventory_id"`
-	Size        string    `json:"size"`
-	Color       string    `json:"color"`
-	PriceID     uuid.UUID `json:"price_id"`
-	Price       float64   `json:"price"`
-	Currency    string    `json:"currency"`
-	Quantity    int       `json:"quantity"`
-	Subtotal    float64   `json:"subtotal"`
-	Notes       string    `json:"notes"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID           uuid.UUID `json:"id"`
+	OrderID      uuid.UUID `json:"order_id"`
+	ProductID    uuid.UUID `json:"product_id"`
+	ProductName  string    `json:"product_name"`
+	ProductImage string    `json:"product_image"`
+	InventoryID  uuid.UUID `json:"inventory_id"`
+	Size         string    `json:"size"`
+	Color        string    `json:"color"`
+	PriceID      uuid.UUID `json:"price_id"`
+	Price        float64   `json:"price"`
+	Currency     string    `json:"currency"`
+	Quantity     int       `json:"quantity"`
+	Subtotal     float64   `json:"subtotal"`
+	Notes        string    `json:"notes"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 // ShipmentResponse represents a shipment in responses

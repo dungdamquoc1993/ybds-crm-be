@@ -391,8 +391,8 @@ func (h *OrderHandler) GetOrders(c *fiber.Ctx) error {
 			DiscountAmount:   o.DiscountAmount,
 			DiscountReason:   o.DiscountReason,
 			FinalTotal:       o.FinalTotalAmount,
-			CreatedBy:        *o.CreatedBy, // Assuming it's not nil
-			CreatedByName:    creatorName,  // Use the same name as customer name
+			CreatedBy:        *o.CreatedBy,
+			CreatedByName:    creatorName,
 			Items:            items,
 			Shipment:         shipmentResponse,
 			CreatedAt:        o.CreatedAt,
@@ -414,7 +414,7 @@ func (h *OrderHandler) GetOrders(c *fiber.Ctx) error {
 
 // GetOrderByID godoc
 // @Summary Get an order by ID
-// @Description Get a specific order with its items, shipment details, and customer information
+// @Description Get a specific order with all its items and details
 // @Tags orders
 // @Accept json
 // @Produce json
@@ -460,13 +460,14 @@ func (h *OrderHandler) GetOrderByID(c *fiber.Ctx) error {
 			CreatedAt:   item.CreatedAt,
 			UpdatedAt:   item.UpdatedAt,
 			// Other fields would need to be fetched from related services
-			ProductID:   uuid.Nil, // Would need to fetch from inventory
-			ProductName: "",       // Would need to fetch from product service
-			Size:        "",       // Would need to fetch from inventory
-			Color:       "",       // Would need to fetch from inventory
-			PriceID:     uuid.Nil, // Would need to fetch from price service
-			Currency:    "",       // Would need to fetch from price service
-			Notes:       "",       // Not in the model, would need to add
+			ProductID:    uuid.Nil, // Will be set below if product is found
+			ProductName:  "",       // Will be set below if product is found
+			ProductImage: "",       // Will be set below if product is found
+			Size:         "",       // Will be set below if inventory is found
+			Color:        "",       // Will be set below if inventory is found
+			PriceID:      uuid.Nil, // Will be set below if price is found
+			Currency:     "",       // Will be set below if price is found
+			Notes:        "",       // Not in the model, would need to add
 		}
 
 		// Get inventory details if available
@@ -481,6 +482,7 @@ func (h *OrderHandler) GetOrderByID(c *fiber.Ctx) error {
 			if err == nil && product != nil {
 				items[i].ProductID = product.ID
 				items[i].ProductName = product.Name
+				items[i].ProductImage = h.orderService.ProductService.GetPrimaryImageURL(product.ID)
 
 				// Get price details if available
 				price, err := h.orderService.ProductService.GetCurrentPrice(product.ID)
@@ -489,6 +491,16 @@ func (h *OrderHandler) GetOrderByID(c *fiber.Ctx) error {
 					items[i].Currency = price.Currency
 				}
 			}
+		}
+	}
+
+	// Get creator information if available
+	var creatorName string
+	if o.CreatedBy != nil {
+		// Get user information
+		user, err := h.orderService.UserService.GetUserByID(*o.CreatedBy)
+		if err == nil {
+			creatorName = user.Username
 		}
 	}
 
@@ -505,47 +517,34 @@ func (h *OrderHandler) GetOrderByID(c *fiber.Ctx) error {
 		}
 	}
 
-	// Get creator information if available
-	var creatorName string
-	if o.CreatedBy != nil {
-		// Get user information
-		user, err := h.orderService.UserService.GetUserByID(*o.CreatedBy)
-		if err == nil {
-			creatorName = user.Username
-		}
-	}
-
-	// Create response
-	orderDetail := responses.OrderDetail{
-		ID:               o.ID,
-		CustomerName:     creatorName,
-		CustomerEmail:    o.CustomerEmail,
-		CustomerPhone:    o.CustomerPhone,
-		ShippingAddress:  o.ShippingAddress,
-		ShippingWard:     o.ShippingWard,
-		ShippingDistrict: o.ShippingDistrict,
-		ShippingCity:     o.ShippingCity,
-		ShippingCountry:  o.ShippingCountry,
-		PaymentMethod:    string(o.PaymentMethod),
-		Status:           string(o.OrderStatus),
-		Notes:            o.Notes,
-		Total:            o.TotalAmount,
-		DiscountAmount:   o.DiscountAmount,
-		DiscountReason:   o.DiscountReason,
-		FinalTotal:       o.FinalTotalAmount,
-		CreatedBy:        *o.CreatedBy, // Assuming it's not nil
-		CreatedByName:    creatorName,  // Use the same name as customer name
-		Items:            items,
-		Shipment:         shipmentResponse,
-		CreatedAt:        o.CreatedAt,
-		UpdatedAt:        o.UpdatedAt,
-	}
-
 	// Return response
 	return c.Status(fiber.StatusOK).JSON(responses.OrderDetailResponse{
 		Success: true,
 		Message: "Order retrieved successfully",
-		Data:    orderDetail,
+		Data: responses.OrderDetail{
+			ID:               o.ID,
+			CustomerName:     o.CustomerName,
+			CustomerEmail:    o.CustomerEmail,
+			CustomerPhone:    o.CustomerPhone,
+			ShippingAddress:  o.ShippingAddress,
+			ShippingWard:     o.ShippingWard,
+			ShippingDistrict: o.ShippingDistrict,
+			ShippingCity:     o.ShippingCity,
+			ShippingCountry:  o.ShippingCountry,
+			PaymentMethod:    string(o.PaymentMethod),
+			Status:           string(o.OrderStatus),
+			Notes:            o.Notes,
+			Total:            o.TotalAmount,
+			DiscountAmount:   o.DiscountAmount,
+			DiscountReason:   o.DiscountReason,
+			FinalTotal:       o.FinalTotalAmount,
+			CreatedBy:        *o.CreatedBy,
+			CreatedByName:    creatorName,
+			Items:            items,
+			Shipment:         shipmentResponse,
+			CreatedAt:        o.CreatedAt,
+			UpdatedAt:        o.UpdatedAt,
+		},
 	})
 }
 

@@ -993,3 +993,25 @@ func (s *ProductService) DeleteProductImage(imageID, productID uuid.UUID) (*Prod
 		ProductID: productID,
 	}, nil
 }
+
+// GetPrimaryImageURL retrieves the URL of the primary image for a product
+func (s *ProductService) GetPrimaryImageURL(productID uuid.UUID) string {
+	images, err := s.ProductImageRepo.GetImagesByProductID(productID)
+	if err != nil || len(images) == 0 {
+		return ""
+	}
+
+	// Find the primary image
+	for _, img := range images {
+		if img.IsPrimary {
+			return img.URL
+		}
+	}
+
+	// If no primary image is set, return the first image
+	if len(images) > 0 {
+		return images[0].URL
+	}
+
+	return ""
+}
