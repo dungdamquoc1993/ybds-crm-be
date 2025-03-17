@@ -64,11 +64,19 @@ func (h *Handler) Middleware() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Upgrade middleware
 		if websocket.IsWebSocketUpgrade(c) {
+			log.Printf("[WebSocket] Connection attempt from %s", c.IP())
+
+			// Log query parameters for debugging
+			log.Printf("[WebSocket] Query params: %v", c.Queries())
+
 			// Authenticate the connection
 			userID, roles, err := h.authFunc(c)
 			if err != nil {
-				return fiber.NewError(fiber.StatusUnauthorized, "Unauthorized")
+				log.Printf("[WebSocket] Authentication failed: %v", err)
+				return fiber.NewError(fiber.StatusUnauthorized, "Unauthorized: "+err.Error())
 			}
+
+			log.Printf("[WebSocket] Authentication successful for user %s with roles %v", userID, roles)
 
 			// Store user ID and roles in the context
 			c.Locals("user_id", userID)

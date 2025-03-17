@@ -153,19 +153,30 @@ func main() {
 	api.Post("/auth/register", authHandler.Register)
 
 	// Register websocket route with its own middleware
-	wsHandler := pkgws.NewHandler(hub, func(c *fiber.Ctx) (string, []string, error) {
-		userID, ok := c.Locals("user_id").(string)
-		if !ok {
-			return "", nil, fmt.Errorf("user_id not found in context")
-		}
+	wsHandler := pkgws.NewHandler(hub, pkgws.JWTAuthFunc(
+		// Function to extract token from request
+		func(c *fiber.Ctx) string {
+			token := c.Query("token")
+			if token != "" {
+				fmt.Printf("[WebSocket] Token from query: %s\n", token[:10]+"...")
+			} else {
+				fmt.Printf("[WebSocket] No token provided in query\n")
+			}
+			return token
+		},
+		// Function to validate token
+		func(tokenString string) (string, []string, error) {
+			// Use the same JWT validation logic as regular API endpoints
+			claims, err := jwtService.ValidateToken(tokenString)
+			if err != nil {
+				fmt.Printf("[WebSocket] Token validation error: %v\n", err)
+				return "", nil, err
+			}
 
-		roles, ok := c.Locals("roles").([]string)
-		if !ok {
-			roles = []string{"user"}
-		}
-
-		return userID, roles, nil
-	})
+			fmt.Printf("[WebSocket] Token validated successfully for user %s with roles %v\n", claims.UserID, claims.Roles)
+			return claims.UserID, claims.Roles, nil
+		},
+	))
 
 	wsGroup := api.Group("/ws")
 	wsGroup.Use(wsHandler.Middleware())
