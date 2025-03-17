@@ -1,0 +1,139 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  DOCKER_TLS_CERTDIR: "/certs"
+  DOCKER_DRIVER: overlay2
+  DOCKER_HOST: tcp://docker:2376
+  DOCKER_TLS_VERIFY: 1
+
+.common-setup: &common-setup
+  image: docker:20.10.16
+  services:
+    - docker:20.10.16-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+
+# Build the Docker image and push to registry
+build:
+  <<: *common-setup
+  stage: build
+  only:
+    - main
+    - tags
+  script:
+    - export DOCKER_IMAGE_TAG=$CI_COMMIT_SHA
+    - export YBDS_BE_PIPELINE_NUMBER=$CI_PIPELINE_ID
+    - echo "Building Docker image..."
+    - docker build -t $CI_REGISTRY_IMAGE:$DOCKER_IMAGE_TAG -f Dockerfile .
+    - echo "Pushing Docker image to registry..."
+    - docker push $CI_REGISTRY_IMAGE:$DOCKER_IMAGE_TAG
+    - |
+      if [[ $CI_COMMIT_REF_NAME == "main" ]]; then
+        echo "Tagging as latest..."
+        docker tag $CI_REGISTRY_IMAGE:$DOCKER_IMAGE_TAG $CI_REGISTRY_IMAGE:latest
+        docker push $CI_REGISTRY_IMAGE:latest
+      fi
+    - |
+      if [[ $CI_COMMIT_TAG ]]; then
+        echo "Tagging with version: $CI_COMMIT_TAG..."
+        docker tag $CI_REGISTRY_IMAGE:$DOCKER_IMAGE_TAG $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
+        docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
+      fi
+  artifacts:
+    paths:
+      - docker-compose.prod.yml
+
+# Deploy to staging environment
+deploy:staging:
+  <<: *common-setup
+  stage: deploy
+  only:
+    - main
+  environment:
+    name: staging
+  variables:
+    GITLAB_REGISTRY: $CI_REGISTRY
+    YBDS_BE_DOCKER_IMAGE: $CI_PROJECT_PATH
+    YBDS_BE_PIPELINE_NUMBER: $CI_PIPELINE_ID
+  script:
+    - echo "Deploying to staging..."
+    - apk add --no-cache openssh-client
+    - mkdir -p ~/.ssh
+    - echo "$STAGING_SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+    - scp docker-compose.prod.yml $STAGING_SERVER_USER@$STAGING_SERVER_HOST:~/docker-compose.yml
+    - scp create-network.sh $STAGING_SERVER_USER@$STAGING_SERVER_HOST:~/create-network.sh
+    - ssh $STAGING_SERVER_USER@$STAGING_SERVER_HOST "
+        chmod +x create-network.sh &&
+        ./create-network.sh &&
+        export GITLAB_REGISTRY=$GITLAB_REGISTRY &&
+        export YBDS_BE_DOCKER_IMAGE=$YBDS_BE_DOCKER_IMAGE &&
+        export YBDS_BE_PIPELINE_NUMBER=$YBDS_BE_PIPELINE_NUMBER &&
+        export YBDS_BE_CONTAINER_NAME=$YBDS_BE_CONTAINER_NAME &&
+        export SERVER_PORT=$SERVER_PORT &&
+        export DB_CONTAINER_NAME=$DB_CONTAINER_NAME &&
+        export DB_USER=$DB_USER &&
+        export DB_PASS=$DB_PASS &&
+        export DB_ACCOUNT_NAME=$DB_ACCOUNT_NAME &&
+        export DB_NOTIFICATION_NAME=$DB_NOTIFICATION_NAME &&
+        export DB_ORDER_NAME=$DB_ORDER_NAME &&
+        export DB_PRODUCT_NAME=$DB_PRODUCT_NAME &&
+        export JWT_SECRET=$JWT_SECRET &&
+        export JWT_EXPIRY=$JWT_EXPIRY &&
+        export UPLOAD_DIR=$UPLOAD_DIR &&
+        export UPLOAD_MAX_SIZE_MB=$UPLOAD_MAX_SIZE_MB &&
+        docker-compose down &&
+        docker system prune -af &&
+        docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $GITLAB_REGISTRY &&
+        docker-compose up -d
+      "
+
+# Deploy to production environment
+deploy:production:
+  <<: *common-setup
+  stage: deploy
+  only:
+    - tags
+  environment:
+    name: production
+  variables:
+    GITLAB_REGISTRY: $CI_REGISTRY
+    YBDS_BE_DOCKER_IMAGE: $CI_PROJECT_PATH
+    YBDS_BE_PIPELINE_NUMBER: $CI_COMMIT_TAG
+  script:
+    - echo "Deploying to production..."
+    - apk add --no-cache openssh-client
+    - mkdir -p ~/.ssh
+    - echo "$PRODUCTION_SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+    - scp docker-compose.prod.yml $PRODUCTION_SERVER_USER@$PRODUCTION_SERVER_HOST:~/docker-compose.yml
+    - scp create-network.sh $PRODUCTION_SERVER_USER@$PRODUCTION_SERVER_HOST:~/create-network.sh
+    - ssh $PRODUCTION_SERVER_USER@$PRODUCTION_SERVER_HOST "
+        chmod +x create-network.sh &&
+        ./create-network.sh &&
+        export GITLAB_REGISTRY=$GITLAB_REGISTRY &&
+        export YBDS_BE_DOCKER_IMAGE=$YBDS_BE_DOCKER_IMAGE &&
+        export YBDS_BE_PIPELINE_NUMBER=$YBDS_BE_PIPELINE_NUMBER &&
+        export YBDS_BE_CONTAINER_NAME=$YBDS_BE_CONTAINER_NAME &&
+        export SERVER_PORT=$SERVER_PORT &&
+        export DB_CONTAINER_NAME=$DB_CONTAINER_NAME &&
+        export DB_USER=$DB_USER &&
+        export DB_PASS=$DB_PASS &&
+        export DB_ACCOUNT_NAME=$DB_ACCOUNT_NAME &&
+        export DB_NOTIFICATION_NAME=$DB_NOTIFICATION_NAME &&
+        export DB_ORDER_NAME=$DB_ORDER_NAME &&
+        export DB_PRODUCT_NAME=$DB_PRODUCT_NAME &&
+        export JWT_SECRET=$JWT_SECRET &&
+        export JWT_EXPIRY=$JWT_EXPIRY &&
+        export UPLOAD_DIR=$UPLOAD_DIR &&
+        export UPLOAD_MAX_SIZE_MB=$UPLOAD_MAX_SIZE_MB &&
+        docker-compose down &&
+        docker system prune -af &&
+        docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $GITLAB_REGISTRY &&
+        docker-compose up -d
+      "
+  when: manual 

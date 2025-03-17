@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16.3
+    container_name: ${DB_CONTAINER_NAME}
+    expose:
+      - "${DB_PORT}"
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 120s
+      timeout: 60s
+      retries: 5
+    restart: always
+    networks:
+      - product
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+volumes:
+  db-data:
+    driver: local
+
+networks:
+  product:
+    driver: bridge 

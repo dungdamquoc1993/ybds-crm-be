@@ -6,61 +6,34 @@ version: '3.8'
 # Service definitions
 services:
   # Application service
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: ybds-app
-    ports:
-      - "3000:3000"
+  ybdsbe:
+    container_name: ${YBDS_BE_CONTAINER_NAME}
+    image: ${GITLAB_REGISTRY}/${YBDS_BE_DOCKER_IMAGE}:${YBDS_BE_PIPELINE_NUMBER}
+    expose:
+      - ${SERVER_PORT}
     environment:
       # Database connection
-      - DB_HOST=postgres
-      - DB_PORT=5432
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
       - DB_USER=${DB_USER}
       - DB_PASS=${DB_PASS}
-      - DB_NAME=${DB_NAME}
+      - DB_ACCOUNT_NAME=${DB_ACCOUNT_NAME}
+      - DB_NOTIFICATION_NAME=${DB_NOTIFICATION_NAME}
+      - DB_ORDER_NAME=${DB_ORDER_NAME}
+      - DB_PRODUCT_NAME=${DB_PRODUCT_NAME}
       - DB_SSL_MODE=require
       # Application settings
-      - SERVER_PORT=3000
+      - SERVER_PORT=${SERVER_PORT}
       - ENV=production
       - JWT_SECRET=${JWT_SECRET}
-      - JWT_EXPIRY=24h
-      - UPLOAD_DIR=/app/uploads
-      - MAX_UPLOAD_SIZE=10
+      - JWT_EXPIRY=${JWT_EXPIRY}
+      - UPLOAD_DIR=${UPLOAD_DIR}
+      - UPLOAD_MAX_SIZE_MB=${UPLOAD_MAX_SIZE_MB}
     volumes:
       - uploads-data:/app/uploads
-    depends_on:
-      - postgres
     restart: always
     networks:
-      - ybds-network
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1G
-
-  # Database service
-  postgres:
-    image: postgres:15-alpine
-    container_name: ybds-postgres
-    ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASS}
-      - POSTGRES_DB=${DB_NAME}
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    restart: always
-    networks:
-      - ybds-network
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1G
+      - product
 
   # Backup service for uploaded files
   backup:
@@ -78,9 +51,9 @@ services:
       "
     restart: always
     depends_on:
-      - app
+      - ybdsbe
     networks:
-      - ybds-network
+      - product
     deploy:
       resources:
         limits:
@@ -89,15 +62,12 @@ services:
 
 # Volume definitions
 volumes:
-  # Persistent storage for PostgreSQL data
-  postgres-data:
-    driver: local
   # Persistent storage for uploaded files
   uploads-data:
     driver: local
 
 # Network definitions
 networks:
-  # Internal network for container communication
-  ybds-network:
-    driver: bridge 
+  # Network for container communication
+  product:
+    external: true 

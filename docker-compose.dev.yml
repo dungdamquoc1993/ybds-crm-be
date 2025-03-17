@@ -1,0 +1,47 @@
+version: '3.8'
+
+# Development Docker Compose Configuration
+services:
+  ybdsbe:
+    container_name: ${YBDS_BE_CONTAINER_NAME}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - ${SERVER_PORT}:${SERVER_PORT}
+    environment:
+      # Database connection
+      - DB_HOST=host.docker.internal
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - DB_ACCOUNT_NAME=${DB_ACCOUNT_NAME}
+      - DB_NOTIFICATION_NAME=${DB_NOTIFICATION_NAME}
+      - DB_ORDER_NAME=${DB_ORDER_NAME}
+      - DB_PRODUCT_NAME=${DB_PRODUCT_NAME}
+      - DB_SSL_MODE=${DB_SSL_MODE}
+      # Application settings
+      - SERVER_PORT=${SERVER_PORT}
+      - ENV=development
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRY=${JWT_EXPIRY}
+      - UPLOAD_DIR=${UPLOAD_DIR}
+      - UPLOAD_MAX_SIZE_MB=${UPLOAD_MAX_SIZE_MB}
+    volumes:
+      - uploads-data:/app/uploads
+      - ./:/app/src
+    restart: unless-stopped
+    networks:
+      - product
+
+# Volume definitions
+volumes:
+  # Persistent storage for uploaded files
+  uploads-data:
+    driver: local
+
+# Network definitions
+networks:
+  # Network for container communication
+  product:
+    external: true 

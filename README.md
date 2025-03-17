@@ -34,16 +34,56 @@ This repository contains the backend API for the YBDS application, which serves 
    go run cmd/server/main.go
    ```
 
-## Docker Setup
+## Docker Setup Instructions
 
-Run the application using Docker Compose:
+This project uses Docker for containerization with separate configurations for development and production environments. PostgreSQL is managed separately with its own Docker Compose file.
+
+## Network Setup
+
+Before running any of the Docker Compose files, create the external network:
 
 ```bash
-# Development
-docker-compose up -d
+# Make the script executable
+chmod +x create-network.sh
 
-# Production
-docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d
+# Run the script to create the network
+./create-network.sh
+```
+
+## PostgreSQL Setup
+
+Start the PostgreSQL container first using:
+
+```bash
+# Start PostgreSQL
+docker-compose -f docker-compose.postgres.yml up -d
+```
+
+## Development Environment
+
+The development environment builds the application from source:
+
+```bash
+# Start the development environment
+docker-compose -f docker-compose.dev.yml up -d
+```
+
+## Production Environment
+
+The production environment pulls a pre-built image from the GitLab registry:
+
+```bash
+# Start the production environment
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+## Environment Variables
+
+All required environment variables are documented in the `.env.example` file. Copy this file to `.env` and update the values as needed:
+
+```bash
+cp .env.example .env
+# Edit .env with your preferred editor
 ```
 
 ## API Documentation
