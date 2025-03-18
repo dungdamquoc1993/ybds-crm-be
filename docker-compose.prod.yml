@@ -21,7 +21,7 @@ services:
       - DB_NOTIFICATION_NAME=${DB_NOTIFICATION_NAME}
       - DB_ORDER_NAME=${DB_ORDER_NAME}
       - DB_PRODUCT_NAME=${DB_PRODUCT_NAME}
-      - DB_SSL_MODE=require
+      - DB_SSL_MODE=${DB_SSL_MODE}
       # Application settings
       - SERVER_PORT=${SERVER_PORT}
       - ENV=production
