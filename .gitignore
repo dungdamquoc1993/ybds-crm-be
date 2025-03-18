@@ -16,8 +16,6 @@
 
 # Go specific
 /vendor/
-/go.sum
-
 # IDE specific files
 .idea/
 .vscode/
