@@ -441,7 +441,7 @@ go test ./tests/e2e/...
 
 - Run unit tests on every commit
 - Run integration tests on pull requests
-- Run end-to-end tests before deployment to staging
+- Run end-to-end tests before deployment to product
 - Generate test coverage reports
 
 ## API Documentation

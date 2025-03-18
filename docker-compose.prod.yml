@@ -6,7 +6,7 @@ version: '3.8'
 # Service definitions
 services:
   # Application service
-  ybdsbe:
+  ybds-be:
     container_name: ${YBDS_BE_CONTAINER_NAME}
     image: ${GITLAB_REGISTRY}/${YBDS_BE_DOCKER_IMAGE}:${YBDS_BE_PIPELINE_NUMBER}
     expose:
@@ -51,7 +51,7 @@ services:
       "
     restart: always
     depends_on:
-      - ybdsbe
+      - ybds-be
     networks:
       - product
     deploy:
