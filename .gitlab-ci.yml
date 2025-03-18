@@ -29,22 +29,22 @@ services:
   - name: docker:27.0.3-dind
     alias: docker
 
-# build:
-#   stage: build
-#   image: alpine:latest
-#   before_script:
-#     - apk update
-#     - apk add --no-cache docker
-#   script:
-#     - echo $GITLAB_ACCESS_TOKEN | docker login $GITLAB_REGISTRY --username gitlab-ci-token --password-stdin
-#     - docker build --file Dockerfile -t $GITLAB_REGISTRY/$YBDS_BE_DOCKER_IMAGE:$YBDS_BE_PIPELINE_NUMBER .
-#     - docker tag $GITLAB_REGISTRY/$YBDS_BE_DOCKER_IMAGE:$YBDS_BE_PIPELINE_NUMBER $GITLAB_REGISTRY/$YBDS_BE_DOCKER_IMAGE:$YBDS_BE_PIPELINE_NUMBER
-#     - docker push $GITLAB_REGISTRY/$YBDS_BE_DOCKER_IMAGE:$YBDS_BE_PIPELINE_NUMBER
-#   after_script:
-#     - rm -rf /usr/local/share/.cache
-#     - rm -rf /tmp/*                   
-#   tags:
-#     - ybds-be
+build:
+  stage: build
+  image: alpine:latest
+  before_script:
+    - apk update
+    - apk add --no-cache docker
+  script:
+    - echo $GITLAB_ACCESS_TOKEN | docker login $GITLAB_REGISTRY --username gitlab-ci-token --password-stdin
+    - docker build --file Dockerfile -t $GITLAB_REGISTRY/$YBDS_BE_DOCKER_IMAGE:$YBDS_BE_PIPELINE_NUMBER .
+    - docker tag $GITLAB_REGISTRY/$YBDS_BE_DOCKER_IMAGE:$YBDS_BE_PIPELINE_NUMBER $GITLAB_REGISTRY/$YBDS_BE_DOCKER_IMAGE:$YBDS_BE_PIPELINE_NUMBER
+    - docker push $GITLAB_REGISTRY/$YBDS_BE_DOCKER_IMAGE:$YBDS_BE_PIPELINE_NUMBER
+  after_script:
+    - rm -rf /usr/local/share/.cache
+    - rm -rf /tmp/*                   
+  tags:
+    - ybds-be
 
 deploy:
   stage: deploy
@@ -60,6 +60,14 @@ deploy:
     - >
       ssh -i ~/.ssh/id_rsa -p $SSH_PORT -T -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST "
       cd /var/$SSH_DEPLOY_DIR &&
+      echo DB_HOST: $DB_HOST &&
+      echo DB_USER: $DB_USER &&
+      echo DB_PASS: $DB_PASS &&
+      echo DB_PORT: $DB_PORT &&
+      echo DB_SSL_MODE: $DB_SSL_MODE &&
+      echo SERVER_PORT: $SERVER_PORT &&
+      echo ENV: $ENV &&
+
       echo $GITLAB_ACCESS_TOKEN | docker login $GITLAB_REGISTRY --username gitlab-ci-token --password-stdin &&
 
       export GITLAB_REGISTRY=$GITLAB_REGISTRY &&
