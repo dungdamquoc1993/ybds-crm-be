@@ -63,9 +63,32 @@ deploy:
       echo $GITLAB_ACCESS_TOKEN | docker login $GITLAB_REGISTRY --username gitlab-ci-token --password-stdin &&
 
       export GITLAB_REGISTRY=$GITLAB_REGISTRY &&
+
       export YBDS_BE_DOCKER_IMAGE=$YBDS_BE_DOCKER_IMAGE &&
       export YBDS_BE_PIPELINE_NUMBER=$YBDS_BE_PIPELINE_NUMBER &&
-    
+
+      export YBDS_BE_CONTAINER_NAME=$YBDS_BE_CONTAINER_NAME &&
+
+      export DB_HOST=$DB_HOST &&
+      export DB_USER=$DB_USER &&
+      export DB_PASS=$DB_PASS &&
+      export DB_PORT=$DB_PORT &&
+      export DB_SSL_MODE=$DB_SSL_MODE &&
+
+      export DB_ACCOUNT_NAME=$DB_ACCOUNT_NAME &&
+      export DB_NOTIFICATION_NAME=$DB_NOTIFICATION_NAME &&
+      export DB_ORDER_NAME=$DB_ORDER_NAME &&
+      export DB_PRODUCT_NAME=$DB_PRODUCT_NAME &&
+
+      export SERVER_PORT=$SERVER_PORT &&
+      export ENV=$ENV &&
+
+      export JWT_SECRET=$JWT_SECRET &&
+      export JWT_EXPIRY=$JWT_EXPIRY &&
+
+      export UPLOAD_DIR=$UPLOAD_DIR &&
+      export UPLOAD_MAX_SIZE_MB=$UPLOAD_MAX_SIZE_MB &&
+
       docker-compose -f docker-compose.ybds-be.prod.yml pull && 
       docker-compose -f docker-compose.ybds-be.prod.yml up -d --force-recreate &&
       echo 'Ybds-be container started version ${YBDS_BE_PIPELINE_NUMBER}' "
