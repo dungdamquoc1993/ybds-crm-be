@@ -319,13 +319,14 @@ func (h *OrderHandler) GetOrders(c *fiber.Ctx) error {
 				CreatedAt:   item.CreatedAt,
 				UpdatedAt:   item.UpdatedAt,
 				// Other fields would need to be fetched from related services
-				ProductID:   uuid.Nil, // Would need to fetch from inventory
-				ProductName: "",       // Would need to fetch from product service
-				Size:        "",       // Would need to fetch from inventory
-				Color:       "",       // Would need to fetch from inventory
-				PriceID:     uuid.Nil, // Would need to fetch from price service
-				Currency:    "",       // Would need to fetch from price service
-				Notes:       "",       // Not in the model, would need to add
+				ProductID:    uuid.Nil, // Would need to fetch from inventory
+				ProductName:  "",       // Would need to fetch from product service
+				ProductImage: "",       // Would need to fetch from product service
+				Size:         "",       // Would need to fetch from inventory
+				Color:        "",       // Would need to fetch from inventory
+				PriceID:      uuid.Nil, // Would need to fetch from price service
+				Currency:     "",       // Would need to fetch from price service
+				Notes:        "",       // Not in the model, would need to add
 			}
 
 			// Get inventory details if available
@@ -340,6 +341,7 @@ func (h *OrderHandler) GetOrders(c *fiber.Ctx) error {
 				if err == nil && product != nil {
 					items[j].ProductID = product.ID
 					items[j].ProductName = product.Name
+					items[j].ProductImage = h.orderService.ProductService.GetPrimaryImageURL(product.ID)
 
 					// Get price details if available
 					price, err := h.orderService.ProductService.GetCurrentPrice(product.ID)
