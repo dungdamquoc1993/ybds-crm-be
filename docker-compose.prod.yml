@@ -29,31 +29,6 @@ services:
     networks:
       - product
 
-  # Backup service for uploaded files
-  backup:
-    image: alpine:latest
-    container_name: ybds-backup
-    volumes:
-      - uploads-data:/data/uploads
-      - ./backups:/backups
-    command: |
-      sh -c "
-        apk add --no-cache tar gzip
-        mkdir -p /backups
-        tar -czf /backups/uploads-backup-\$(date +%Y%m%d-%H%M%S).tar.gz -C /data uploads
-        find /backups -name 'uploads-backup-*.tar.gz' -mtime +7 -delete
-      "
-    restart: always
-    depends_on:
-      - ybds-be
-    networks:
-      - product
-    deploy:
-      resources:
-        limits:
-          cpus: '0.1'
-          memory: 128M
-
 # Volume definitions
 volumes:
   # Persistent storage for uploaded files
