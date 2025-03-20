@@ -96,7 +96,7 @@ func main() {
 	go hub.Run()
 
 	// Initialize upload service
-	uploadConfig := pkgupload.NewConfig("./uploads")
+	uploadConfig := pkgupload.NewConfig(cfg.Upload.Dir)
 	uploadConfig.WithSubDir("products")
 	uploadService, err := pkgupload.NewService(uploadConfig)
 	if err != nil {
@@ -127,7 +127,7 @@ func main() {
 	// Register middleware
 	app.Use(recover.New())
 	app.Use(logger.New())
-
+	
 	// Setup Swagger
 	app.Get("/swagger/*", swagger.New(swagger.Config{
 		URL:         "/swagger/doc.json",
