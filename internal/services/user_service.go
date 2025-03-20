@@ -53,6 +53,16 @@ func (s *UserService) GetUserByUsernameOrEmail(usernameOrEmail string) (*account
 	return &user, nil
 }
 
+// GetUserByCredentials retrieves a user by username, email, or phone
+func (s *UserService) GetUserByCredentials(credential string) (*account.User, error) {
+	var user account.User
+	if err := s.DB.Where("username = ? OR email = ? OR phone = ?", credential, credential, credential).
+		Preload("Roles").First(&user).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
 // GetAllUsers retrieves all users with pagination
 func (s *UserService) GetAllUsers(page, pageSize int) ([]account.User, int64, error) {
 	return s.UserRepo.GetAllUsers(page, pageSize)

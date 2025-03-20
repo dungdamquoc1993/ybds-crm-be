@@ -39,8 +39,8 @@ type LoginResult struct {
 
 // Login authenticates a user and returns a JWT token if successful
 func (s *AuthService) Login(username, plainPassword string) (*LoginResult, error) {
-	// Find user by username or email using UserService
-	user, err := s.userService.GetUserByUsernameOrEmail(username)
+	// Find user by username, email, or phone using UserService
+	user, err := s.userService.GetUserByCredentials(username)
 	if err != nil {
 		return &LoginResult{
 			Success: false,
