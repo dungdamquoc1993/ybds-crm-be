@@ -27,6 +27,7 @@ services:
       - JWT_EXPIRY=${JWT_EXPIRY}
       - UPLOAD_DIR=${UPLOAD_DIR}
       - UPLOAD_MAX_SIZE_MB=${UPLOAD_MAX_SIZE_MB}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
     volumes:
       - uploads-data:/app/uploads
       - ./:/app/src

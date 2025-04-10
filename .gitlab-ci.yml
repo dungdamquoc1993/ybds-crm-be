@@ -22,6 +22,7 @@ variables:
   JWT_EXPIRY: $JWT_EXPIRY
   UPLOAD_DIR: $UPLOAD_DIR
   UPLOAD_MAX_SIZE_MB: $UPLOAD_MAX_SIZE_MB
+  TELEGRAM_BOT_TOKEN: $TELEGRAM_BOT_TOKEN
 
 image: docker:27.0.3
 
@@ -89,7 +90,9 @@ deploy:
       export UPLOAD_DIR=$UPLOAD_DIR &&
       export UPLOAD_MAX_SIZE_MB=$UPLOAD_MAX_SIZE_MB &&
 
-      docker rm -f ybds-be || true &&
+      export TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN &&
+
+      docker rm -f $YBDS_BE_CONTAINER_NAME || true &&
       docker-compose -f docker-compose.ybds-be.prod.yml pull && 
       docker-compose -f docker-compose.ybds-be.prod.yml up -d --force-recreate &&
       echo 'Ybds-be container started version ${YBDS_BE_PIPELINE_NUMBER}' "
