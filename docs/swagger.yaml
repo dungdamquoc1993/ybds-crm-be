@@ -94,6 +94,13 @@ definitions:
       payment_method:
         example: cash
         type: string
+      shipment_carrier:
+        example: DHL
+        type: string
+      shipment_tracking_number:
+        description: Shipment information
+        example: TRACK123456789
+        type: string
       shipping_address:
         description: Shipping address information
         example: 123 Main St
@@ -908,11 +915,15 @@ paths:
         type: string
       - description: Filter by start date (YYYY-MM-DD)
         in: query
-        name: start_date
+        name: from_date
         type: string
       - description: Filter by end date (YYYY-MM-DD)
         in: query
-        name: end_date
+        name: to_date
+        type: string
+      - description: Filter by customer phone number
+        in: query
+        name: phone_number
         type: string
       - description: Search term
         in: query
@@ -937,8 +948,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Create a new order with items. Only customer_name and items are
-        required, all other fields are optional.
+      description: Create a new order with items and optional shipment information.
+        Only customer_name and items are required, all other fields are optional.
       parameters:
       - description: Order details
         in: body
@@ -1040,7 +1051,8 @@ paths:
       consumes:
       - application/json
       description: Update the details of an order including payment details, shipping
-        address, and customer information
+        address, and customer information. Admins can update any order. Agents can
+        only update orders with status 'pending_confirmation', 'confirmed', or 'shipment_requested'.
       parameters:
       - description: Order ID
         in: path
@@ -1062,6 +1074,14 @@ paths:
             $ref: '#/definitions/responses.OrderResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "403":
+          description: Forbidden
           schema:
             $ref: '#/definitions/responses.ErrorResponse'
         "404":
@@ -1122,7 +1142,9 @@ paths:
     put:
       consumes:
       - application/json
-      description: Update the details of an order's shipment
+      description: Update the shipment details of an order. Admins can update any
+        order's shipment. Agents can only update shipments for orders with status
+        'pending_confirmation', 'confirmed', or 'shipment_requested'.
       parameters:
       - description: Order ID
         in: path
@@ -1146,6 +1168,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/responses.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -1163,8 +1193,9 @@ paths:
     put:
       consumes:
       - application/json
-      description: Update the status of an order. Status can be changed to 'canceled'
-        from any state except 'returned', 'return_processing', or 'delivered'.
+      description: Update the status of an order. Admins can change to any status.
+        Agents can only change orders with status 'pending_confirmation', 'confirmed',
+        or 'shipment_requested'.
       parameters:
       - description: Order ID
         in: path
@@ -1186,6 +1217,14 @@ paths:
             $ref: '#/definitions/responses.OrderResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "403":
+          description: Forbidden
           schema:
             $ref: '#/definitions/responses.ErrorResponse'
         "404":
@@ -1239,7 +1278,9 @@ paths:
     put:
       consumes:
       - application/json
-      description: Update an existing order item
+      description: Update the quantity of an order item. Admins can update any order
+        item. Agents can only update items if the order status is 'pending_confirmation',
+        'confirmed', or 'shipment_requested'.
       parameters:
       - description: Order Item ID
         in: path
@@ -1263,6 +1304,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/responses.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -1274,6 +1323,41 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Update an order item
+      tags:
+      - orders
+  /api/orders/tracking/{number}:
+    get:
+      consumes:
+      - application/json
+      description: Get a specific order by its shipment tracking number
+      parameters:
+      - description: Tracking Number
+        in: path
+        name: number
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.OrderDetailResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get order by tracking number
       tags:
       - orders
   /api/products:

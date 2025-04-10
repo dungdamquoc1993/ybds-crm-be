@@ -223,10 +223,6 @@ func main() {
 	// Register order routes using the RegisterRoutes method
 	orderHandler.RegisterRoutes(adminOrAgentRoutes, middleware.JWTAuth(jwtService))
 
-	// Admin-only order routes
-	adminRoutes.Put("/orders/:id/status", orderHandler.UpdateOrderStatus)
-	adminRoutes.Delete("/orders/:id", orderHandler.DeleteOrder)
-
 	// Register notification routes - Admin or Agent
 	adminOrAgentRoutes.Get("/notifications", notificationHandler.GetNotifications)
 	adminOrAgentRoutes.Get("/notifications/unread", notificationHandler.GetUnreadNotifications)

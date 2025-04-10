@@ -42,6 +42,9 @@ type CreateOrderRequest struct {
 	CustomerName  string `json:"customer_name" example:"John Doe" required:"true"`
 	CustomerEmail string `json:"customer_email" example:"john@example.com"`
 	CustomerPhone string `json:"customer_phone" example:"1234567890"`
+	// Shipment information
+	ShipmentTrackingNumber string `json:"shipment_tracking_number" example:"TRACK123456789"`
+	ShipmentCarrier        string `json:"shipment_carrier" example:"DHL"`
 }
 
 // Validate validates the create order request

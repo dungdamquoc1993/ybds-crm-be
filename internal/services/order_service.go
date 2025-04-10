@@ -943,3 +943,11 @@ func (s *OrderService) UpdateOrderDetails(
 		CreatedBy:      o.CreatedBy,
 	}, nil
 }
+
+// GetOrderByTrackingNumber retrieves an order by shipment tracking number
+func (s *OrderService) GetOrderByTrackingNumber(trackingNumber string) (*order.Order, error) {
+	if trackingNumber == "" {
+		return nil, fmt.Errorf("tracking number is required")
+	}
+	return s.OrderRepo.GetOrderByTrackingNumber(trackingNumber)
+}

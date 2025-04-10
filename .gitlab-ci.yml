@@ -30,22 +30,22 @@ services:
   - name: docker:27.0.3-dind
     alias: docker
 
-# build:
-#   stage: build
-#   image: alpine:latest
-#   before_script:
-#     - apk update
-#     - apk add --no-cache docker
-#   script:
-#     - echo $GITLAB_ACCESS_TOKEN | docker login $GITLAB_REGISTRY --username gitlab-ci-token --password-stdin
-#     - docker build --file Dockerfile -t $GITLAB_REGISTRY/$YBDS_BE_DOCKER_IMAGE:$YBDS_BE_PIPELINE_NUMBER .
-#     - docker tag $GITLAB_REGISTRY/$YBDS_BE_DOCKER_IMAGE:$YBDS_BE_PIPELINE_NUMBER $GITLAB_REGISTRY/$YBDS_BE_DOCKER_IMAGE:$YBDS_BE_PIPELINE_NUMBER
-#     - docker push $GITLAB_REGISTRY/$YBDS_BE_DOCKER_IMAGE:$YBDS_BE_PIPELINE_NUMBER
-#   after_script:
-#     - rm -rf /usr/local/share/.cache
-#     - rm -rf /tmp/*
-#   tags:
-#     - ybds-be
+build:
+  stage: build
+  image: alpine:latest
+  before_script:
+    - apk update
+    - apk add --no-cache docker
+  script:
+    - echo $GITLAB_ACCESS_TOKEN | docker login $GITLAB_REGISTRY --username gitlab-ci-token --password-stdin
+    - docker build --file Dockerfile -t $GITLAB_REGISTRY/$YBDS_BE_DOCKER_IMAGE:$YBDS_BE_PIPELINE_NUMBER .
+    - docker tag $GITLAB_REGISTRY/$YBDS_BE_DOCKER_IMAGE:$YBDS_BE_PIPELINE_NUMBER $GITLAB_REGISTRY/$YBDS_BE_DOCKER_IMAGE:$YBDS_BE_PIPELINE_NUMBER
+    - docker push $GITLAB_REGISTRY/$YBDS_BE_DOCKER_IMAGE:$YBDS_BE_PIPELINE_NUMBER
+  after_script:
+    - rm -rf /usr/local/share/.cache
+    - rm -rf /tmp/*
+  tags:
+    - ybds-be
 
 deploy:
   stage: deploy

@@ -409,13 +409,19 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "Filter by start date (YYYY-MM-DD)",
-                        "name": "start_date",
+                        "name": "from_date",
                         "in": "query"
                     },
                     {
                         "type": "string",
                         "description": "Filter by end date (YYYY-MM-DD)",
-                        "name": "end_date",
+                        "name": "to_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by customer phone number",
+                        "name": "phone_number",
                         "in": "query"
                     },
                     {
@@ -446,7 +452,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Create a new order with items. Only customer_name and items are required, all other fields are optional.",
+                "description": "Create a new order with items and optional shipment information. Only customer_name and items are required, all other fields are optional.",
                 "consumes": [
                     "application/json"
                 ],
@@ -497,7 +503,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Update an existing order item",
+                "description": "Update the quantity of an order item. Admins can update any order item. Agents can only update items if the order status is 'pending_confirmation', 'confirmed', or 'shipment_requested'.",
                 "consumes": [
                     "application/json"
                 ],
@@ -535,6 +541,18 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/responses.ErrorResponse"
                         }
@@ -584,6 +602,61 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/responses.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/orders/tracking/{number}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Get a specific order by its shipment tracking number",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Get order by tracking number",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tracking Number",
+                        "name": "number",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.OrderDetailResponse"
                         }
                     },
                     "400": {
@@ -722,7 +795,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Update the details of an order including payment details, shipping address, and customer information",
+                "description": "Update the details of an order including payment details, shipping address, and customer information. Admins can update any order. Agents can only update orders with status 'pending_confirmation', 'confirmed', or 'shipment_requested'.",
                 "consumes": [
                     "application/json"
                 ],
@@ -760,6 +833,18 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/responses.ErrorResponse"
                         }
@@ -850,7 +935,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Update the details of an order's shipment",
+                "description": "Update the shipment details of an order. Admins can update any order's shipment. Agents can only update shipments for orders with status 'pending_confirmation', 'confirmed', or 'shipment_requested'.",
                 "consumes": [
                     "application/json"
                 ],
@@ -892,6 +977,18 @@ const docTemplate = `{
                             "$ref": "#/definitions/responses.ErrorResponse"
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -914,7 +1011,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Update the status of an order. Status can be changed to 'canceled' from any state except 'returned', 'return_processing', or 'delivered'.",
+                "description": "Update the status of an order. Admins can change to any status. Agents can only change orders with status 'pending_confirmation', 'confirmed', or 'shipment_requested'.",
                 "consumes": [
                     "application/json"
                 ],
@@ -952,6 +1049,18 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/responses.ErrorResponse"
                         }
@@ -2433,6 +2542,15 @@ const docTemplate = `{
                 "payment_method": {
                     "type": "string",
                     "example": "cash"
+                },
+                "shipment_carrier": {
+                    "type": "string",
+                    "example": "DHL"
+                },
+                "shipment_tracking_number": {
+                    "description": "Shipment information",
+                    "type": "string",
+                    "example": "TRACK123456789"
                 },
                 "shipping_address": {
                     "description": "Shipping address information",

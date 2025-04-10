@@ -28,6 +28,17 @@ func (r *OrderRepository) GetOrderByID(id uuid.UUID) (*order.Order, error) {
 	return &o, err
 }
 
+// GetOrderByTrackingNumber retrieves an order by shipment tracking number
+func (r *OrderRepository) GetOrderByTrackingNumber(trackingNumber string) (*order.Order, error) {
+	var o order.Order
+	err := r.db.Joins("JOIN shipments ON orders.id = shipments.order_id").
+		Where("shipments.tracking_number = ? AND shipments.deleted_at IS NULL", trackingNumber).
+		Preload("Items").
+		Preload("Shipment").
+		First(&o).Error
+	return &o, err
+}
+
 // GetAllOrders retrieves all orders with pagination and filtering
 func (r *OrderRepository) GetAllOrders(page, pageSize int, filters map[string]interface{}) ([]order.Order, int64, error) {
 	var orders []order.Order
@@ -46,6 +57,12 @@ func (r *OrderRepository) GetAllOrders(page, pageSize int, filters map[string]in
 			query = query.Where("order_status = ?", value)
 		case "created_by":
 			query = query.Where("created_by = ?", value)
+		case "from_date":
+			query = query.Where("orders.created_at >= ?", value)
+		case "to_date":
+			query = query.Where("orders.created_at <= ?", value)
+		case "phone_number":
+			query = query.Where("customer_phone LIKE ?", "%"+value.(string)+"%")
 		}
 	}
 
