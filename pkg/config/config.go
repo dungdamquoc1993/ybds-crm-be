@@ -20,6 +20,7 @@ type Config struct {
 	Server         ServerConfig
 	JWT            JWTConfig
 	Upload         UploadConfig
+	Telegram       TelegramConfig
 }
 
 // DatabaseConfig holds all database related configuration
@@ -48,6 +49,11 @@ type JWTConfig struct {
 type UploadConfig struct {
 	Dir       string
 	MaxSizeMB int
+}
+
+// TelegramConfig holds all Telegram related configuration
+type TelegramConfig struct {
+	BotToken string
 }
 
 // LoadConfig loads the configuration from .env file and environment variables
@@ -111,6 +117,9 @@ func LoadConfig() (*Config, error) {
 			Dir:       v.GetString("upload.dir"),
 			MaxSizeMB: v.GetInt("upload.max_size"),
 		},
+		Telegram: TelegramConfig{
+			BotToken: v.GetString("telegram.bot_token"),
+		},
 	}
 
 	// Ensure upload directory exists
@@ -173,6 +182,9 @@ func mapEnvToConfig(v *viper.Viper) {
 	// Upload mapping
 	v.BindEnv("upload.dir", "UPLOAD_DIR")
 	v.BindEnv("upload.max_size", "MAX_UPLOAD_SIZE")
+
+	// Telegram mapping
+	v.BindEnv("telegram.bot_token", "TELEGRAM_BOT_TOKEN")
 }
 
 // ensureUploadDir ensures that the upload directory exists

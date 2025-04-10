@@ -256,7 +256,11 @@ func (s *OrderService) CreateOrder(
 			"number_of_items": len(items),
 		}
 
-		s.NotificationService.CreateOrderNotification(o.ID, *createdByID, "created", metadata)
+		notificationResult, err := s.NotificationService.CreateOrderNotification(o.ID, *createdByID, "created", metadata)
+		if err != nil {
+			log.Printf("Failed to create order notification: %v", err)
+		}
+		log.Println("CreateOrderNotification result day ne ma", notificationResult)
 	}
 
 	return &OrderResult{

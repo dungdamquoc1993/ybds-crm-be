@@ -228,30 +228,10 @@ definitions:
       tracking_number:
         type: string
     type: object
-  responses.AddressResponse:
+  requests.UpdateTelegramIDRequest:
     properties:
-      address:
-        type: string
-      city:
-        type: string
-      country:
-        type: string
-      created_at:
-        type: string
-      district:
-        type: string
-      guest_id:
-        type: string
-      id:
-        type: string
-      is_default:
-        type: boolean
-      updated_at:
-        type: string
-      user_id:
-        type: string
-      ward:
-        type: string
+      telegram_id:
+        type: integer
     type: object
   responses.ErrorResponse:
     properties:
@@ -440,6 +420,8 @@ definitions:
         type: string
       product_id:
         type: string
+      product_image:
+        type: string
       product_name:
         type: string
       quantity:
@@ -576,6 +558,15 @@ definitions:
       updated_at:
         type: string
     type: object
+  responses.SingleUserResponse:
+    properties:
+      data:
+        $ref: '#/definitions/responses.UserDetailResponse'
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
   responses.SuccessResponse:
     properties:
       message:
@@ -585,28 +576,22 @@ definitions:
     type: object
   responses.UserDetailResponse:
     properties:
-      addresses:
-        items:
-          $ref: '#/definitions/responses.AddressResponse'
-        type: array
       created_at:
         type: string
       email:
-        type: string
-      first_name:
         type: string
       id:
         type: string
       is_active:
         type: boolean
-      last_name:
-        type: string
       phone:
         type: string
       roles:
         items:
           type: string
         type: array
+      telegram_id:
+        type: integer
       updated_at:
         type: string
       username:
@@ -1019,8 +1004,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get a specific order with its items, shipment details, and customer
-        information
+      description: Get a specific order with all its items and details
       parameters:
       - description: Order ID
         in: path
@@ -2025,7 +2009,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get a list of all users with their addresses and roles
+      description: Get a list of all users with their roles
       parameters:
       - description: Page number
         in: query
@@ -2071,7 +2055,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get a specific user with their addresses and roles
+      description: Get a specific user with their roles
       parameters:
       - description: User ID
         in: path
@@ -2084,7 +2068,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/responses.UserDetailResponse'
+            $ref: '#/definitions/responses.SingleUserResponse'
         "400":
           description: Bad Request
           schema:
@@ -2100,6 +2084,47 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Get a user by ID with all relationships
+      tags:
+      - users
+  /api/users/{id}/telegram:
+    patch:
+      consumes:
+      - application/json
+      description: Update the Telegram ID for a specific user
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Telegram ID info
+        in: body
+        name: telegramRequest
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateTelegramIDRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.SingleUserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Update a user's Telegram ID
       tags:
       - users
 securityDefinitions:

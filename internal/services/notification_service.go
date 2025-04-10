@@ -3,11 +3,13 @@ package services
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/ybds/internal/models/notification"
 	"github.com/ybds/internal/repositories"
+	"github.com/ybds/pkg/telegram"
 	"github.com/ybds/pkg/websocket"
 	"gorm.io/gorm"
 )
@@ -17,14 +19,18 @@ type NotificationService struct {
 	DB               *gorm.DB
 	NotificationRepo *repositories.NotificationRepository
 	WebsocketHub     *websocket.Hub
+	TelegramClient   *telegram.TelegramClient
+	UserRepo         *repositories.UserRepository
 }
 
 // NewNotificationService creates a new instance of NotificationService
-func NewNotificationService(db *gorm.DB, websocketHub *websocket.Hub) *NotificationService {
+func NewNotificationService(notificationDB *gorm.DB, accountDB *gorm.DB, websocketHub *websocket.Hub, telegramClient *telegram.TelegramClient) *NotificationService {
 	return &NotificationService{
-		DB:               db,
-		NotificationRepo: repositories.NewNotificationRepository(db),
+		DB:               notificationDB,
+		NotificationRepo: repositories.NewNotificationRepository(notificationDB),
 		WebsocketHub:     websocketHub,
+		TelegramClient:   telegramClient,
+		UserRepo:         repositories.NewUserRepository(accountDB),
 	}
 }
 
@@ -66,7 +72,8 @@ func (s *NotificationService) CreateNotification(
 		IsRead:        false,
 	}
 
-	if err := tx.Create(&notif).Error; err != nil {
+	// Use repository to create notification
+	if err := s.NotificationRepo.CreateNotification(&notif); err != nil {
 		tx.Rollback()
 		return &NotificationResult{
 			Success: false,
@@ -84,7 +91,8 @@ func (s *NotificationService) CreateNotification(
 			Attempts:       0,
 		}
 
-		if err := tx.Create(&channel).Error; err != nil {
+		// Use repository to create channel
+		if err := s.NotificationRepo.CreateChannel(&channel); err != nil {
 			tx.Rollback()
 			return &NotificationResult{
 				Success: false,
@@ -103,13 +111,17 @@ func (s *NotificationService) CreateNotification(
 		}, err
 	}
 
-	// Send the notification through websocket if applicable
-	if recipientID != nil {
-		for _, channelType := range channels {
-			if channelType == notification.ChannelWebsocket {
+	// Send notifications through the appropriate channels
+	for _, channelType := range channels {
+		switch channelType {
+		case notification.ChannelWebsocket:
+			if recipientID != nil {
 				s.sendWebsocketNotification(notif)
-				break
 			}
+		case notification.ChannelTelegram:
+			s.sendTelegramNotification(notif)
+		case notification.ChannelEmail:
+			s.sendEmailNotification(notif)
 		}
 	}
 
@@ -161,12 +173,93 @@ func (s *NotificationService) sendWebsocketNotification(notif notification.Notif
 	}
 
 	// Update the channel status
+	s.updateChannelStatus(notif.ID, notification.ChannelWebsocket, notification.ChannelSent, "Websocket message sent")
+}
+
+// sendTelegramNotification sends a notification through Telegram
+func (s *NotificationService) sendTelegramNotification(notif notification.Notification) {
+	// Skip if TelegramClient is nil
+	if s.TelegramClient == nil {
+		return
+	}
+
+	// Only proceed if this is a user notification with a recipient ID
+	if notif.RecipientType == notification.RecipientUser && notif.RecipientID != nil {
+		// Get the user by ID using the repository
+		user, err := s.UserRepo.GetUserByID(*notif.RecipientID)
+		if err != nil {
+			fmt.Printf("Error finding user for Telegram notification: %v\n", err)
+			s.updateChannelStatus(notif.ID, notification.ChannelTelegram, notification.ChannelFailed, "User not found")
+			return
+		}
+
+		// Check if user has telegram_id
+		if user.TelegramID <= 0 {
+			fmt.Printf("User %s does not have a valid Telegram ID\n", user.Username)
+			s.updateChannelStatus(notif.ID, notification.ChannelTelegram, notification.ChannelFailed, "User has no Telegram ID")
+			return
+		}
+
+		// Format the message
+		message := fmt.Sprintf("%s\n\n%s", notif.Title, notif.Message)
+
+		// Send the message
+		if err := s.TelegramClient.SendMessage(user.TelegramID, message); err != nil {
+			fmt.Printf("Error sending Telegram notification: %v\n", err)
+			s.updateChannelStatus(notif.ID, notification.ChannelTelegram, notification.ChannelFailed, err.Error())
+			return
+		}
+
+		// Update channel status
+		s.updateChannelStatus(notif.ID, notification.ChannelTelegram, notification.ChannelSent, "Message sent successfully")
+	} else {
+		// Update channel status for non-user notifications
+		s.updateChannelStatus(notif.ID, notification.ChannelTelegram, notification.ChannelFailed, "Unsupported recipient type")
+	}
+}
+
+// sendEmailNotification sends notification through email
+func (s *NotificationService) sendEmailNotification(notif notification.Notification) {
+	// Email service is not implemented
+	s.updateChannelStatus(notif.ID, notification.ChannelEmail, notification.ChannelFailed, "Email service not implemented")
+}
+
+// updateChannelStatus updates the status of a notification channel
+func (s *NotificationService) updateChannelStatus(notificationID uuid.UUID, channelType notification.ChannelType, status notification.ChannelStatus, message string) {
 	go func() {
 		var channel notification.Channel
-		if err := s.DB.Where("notification_id = ? AND channel = ?", notif.ID, notification.ChannelWebsocket).First(&channel).Error; err == nil {
-			channel.Status = notification.ChannelSent
-			channel.Response = notification.Response{"sent_at": time.Now()}
-			s.DB.Save(&channel)
+		// Get the channel using the repository instead of direct DB access
+		channels, err := s.NotificationRepo.GetChannelsByNotificationID(notificationID)
+		if err != nil {
+			log.Printf("Error finding channel for notification %s and channel %s: %v", notificationID, channelType, err)
+			return
+		}
+
+		// Find the specific channel by type
+		var channelFound bool
+		for _, ch := range channels {
+			if ch.Channel == channelType {
+				channel = ch
+				channelFound = true
+				break
+			}
+		}
+
+		if !channelFound {
+			log.Printf("Channel %s not found for notification %s", channelType, notificationID)
+			return
+		}
+
+		// Update the channel status and response
+		channel.Status = status
+		channel.Response = notification.Response{
+			"updated_at": time.Now(),
+			"message":    message,
+		}
+
+		// Save the channel using the repository
+		if err := s.NotificationRepo.UpdateChannel(&channel); err != nil {
+			log.Printf("Error updating channel status: %v", err)
 		}
 	}()
 }
@@ -232,16 +325,60 @@ func (s *NotificationService) CreateProductNotification(productID uuid.UUID, pro
 		message = fmt.Sprintf("Notification for product '%s'.", productName)
 	}
 
-	// Create the notification for admin users
-	// We're not specifying a recipient ID because this is a broadcast to all admins
-	return s.CreateNotification(
-		nil,
-		notification.RecipientUser,
-		title,
-		message,
-		notifMetadata,
-		[]notification.ChannelType{notification.ChannelWebsocket},
-	)
+	// Find all admin users using the repository
+	adminUsers, err := s.UserRepo.GetAdminUsers()
+	if err != nil {
+		return &NotificationResult{
+			Success: false,
+			Message: "Failed to find admin users for notification",
+			Error:   err.Error(),
+		}, err
+	}
+
+	if len(adminUsers) == 0 {
+		return &NotificationResult{
+			Success: false,
+			Message: "No admin users found to notify",
+			Error:   "No admin users found",
+		}, fmt.Errorf("no admin users found")
+	}
+
+	// Track notification results
+	var lastResult *NotificationResult
+	var lastError error
+	successCount := 0
+
+	// Send notification to each admin user
+	for _, admin := range adminUsers {
+		result, err := s.CreateNotification(
+			&admin.ID,
+			notification.RecipientUser,
+			title,
+			message,
+			notifMetadata,
+			[]notification.ChannelType{notification.ChannelWebsocket, notification.ChannelTelegram},
+		)
+
+		if err == nil && result.Success {
+			successCount++
+		}
+
+		// Store the last result for return value
+		lastResult = result
+		lastError = err
+	}
+
+	// Return success if at least one notification was sent successfully
+	if successCount > 0 {
+		return &NotificationResult{
+			Success:        true,
+			Message:        fmt.Sprintf("Product notification sent to %d admin users", successCount),
+			NotificationID: lastResult.NotificationID,
+		}, nil
+	}
+
+	// If all notifications failed, return the last error
+	return lastResult, lastError
 }
 
 // CreateOrderNotification creates a notification for an order event
@@ -267,28 +404,73 @@ func (s *NotificationService) CreateOrderNotification(orderID uuid.UUID, custome
 		message = fmt.Sprintf("A new order (#%s) has been received.", orderID.String()[:8])
 	case "confirmed":
 		title = "Order Confirmed"
-		message = fmt.Sprintf("Your order (#%s) has been confirmed.", orderID.String()[:8])
+		message = fmt.Sprintf("Order (#%s) has been confirmed.", orderID.String()[:8])
 	case "shipped":
 		title = "Order Shipped"
-		message = fmt.Sprintf("Your order (#%s) has been shipped.", orderID.String()[:8])
+		message = fmt.Sprintf("Order (#%s) has been shipped.", orderID.String()[:8])
 	case "delivered":
 		title = "Order Delivered"
-		message = fmt.Sprintf("Your order (#%s) has been delivered.", orderID.String()[:8])
+		message = fmt.Sprintf("Order (#%s) has been delivered.", orderID.String()[:8])
 	case "canceled":
 		title = "Order Canceled"
-		message = fmt.Sprintf("Your order (#%s) has been canceled.", orderID.String()[:8])
+		message = fmt.Sprintf("Order (#%s) has been canceled.", orderID.String()[:8])
 	default:
 		title = "Order Update"
-		message = fmt.Sprintf("Update for your order (#%s).", orderID.String()[:8])
+		message = fmt.Sprintf("Update for order (#%s).", orderID.String()[:8])
 	}
 
-	// Create the notification for the customer
-	return s.CreateNotification(
-		&customerID,
-		notification.RecipientUser,
-		title,
-		message,
-		notifMetadata,
-		[]notification.ChannelType{notification.ChannelWebsocket},
-	)
+	// Find all admin users using the repository
+	adminUsers, err := s.UserRepo.GetAdminUsers()
+	if err != nil {
+		return &NotificationResult{
+			Success: false,
+			Message: "Failed to find admin users for notification",
+			Error:   err.Error(),
+		}, err
+	}
+
+	if len(adminUsers) == 0 {
+		return &NotificationResult{
+			Success: false,
+			Message: "No admin users found to notify",
+			Error:   "No admin users found",
+		}, fmt.Errorf("no admin users found")
+	}
+
+	// Track notification results
+	var lastResult *NotificationResult
+	var lastError error
+	successCount := 0
+	log.Println("day la tong so luong admin", len(adminUsers))
+	// Send notification to each admin user
+	for _, admin := range adminUsers {
+		result, err := s.CreateNotification(
+			&admin.ID,
+			notification.RecipientUser,
+			title,
+			message,
+			notifMetadata,
+			[]notification.ChannelType{notification.ChannelWebsocket, notification.ChannelTelegram},
+		)
+
+		if err == nil && result.Success {
+			successCount++
+		}
+
+		// Store the last result for return value
+		lastResult = result
+		lastError = err
+	}
+
+	// Return success if at least one notification was sent successfully
+	if successCount > 0 {
+		return &NotificationResult{
+			Success:        true,
+			Message:        fmt.Sprintf("Order notification sent to %d admin users", successCount),
+			NotificationID: lastResult.NotificationID,
+		}, nil
+	}
+
+	// If all notifications failed, return the last error
+	return lastResult, lastError
 }

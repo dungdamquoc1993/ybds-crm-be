@@ -11,6 +11,7 @@ import (
 
 	fiberwsocket "github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/swagger"
@@ -22,6 +23,7 @@ import (
 	"github.com/ybds/pkg/config"
 	pkgdb "github.com/ybds/pkg/database"
 	pkgjwt "github.com/ybds/pkg/jwt"
+	pkgtelegram "github.com/ybds/pkg/telegram"
 	pkgupload "github.com/ybds/pkg/upload"
 	pkgws "github.com/ybds/pkg/websocket"
 )
@@ -103,8 +105,17 @@ func main() {
 		log.Fatalf("Failed to initialize upload service: %v", err)
 	}
 
+	// Initialize Telegram client
+	var telegramClient *pkgtelegram.TelegramClient
+	if cfg.Telegram.BotToken != "" {
+		telegramClient = pkgtelegram.NewClient(cfg.Telegram.BotToken)
+		log.Println("Telegram client initialized successfully")
+	} else {
+		log.Println("Warning: Telegram bot token not provided, Telegram notifications will be disabled")
+	}
+
 	// Initialize services in the correct order to respect dependencies
-	notificationService := services.NewNotificationService(dbConnections.NotificationDB, hub)
+	notificationService := services.NewNotificationService(dbConnections.NotificationDB, dbConnections.AccountDB, hub, telegramClient)
 	userService := services.NewUserService(dbConnections.AccountDB, notificationService)
 	productService := services.NewProductService(dbConnections.ProductDB, notificationService, uploadService)
 
@@ -120,6 +131,14 @@ func main() {
 		AppName:      "YBDS API",
 		ErrorHandler: customErrorHandler,
 	})
+	// check ENV = dev then use cors
+	if cfg.Server.Env == "development" {
+		app.Use(cors.New(cors.Config{
+			AllowOrigins: "*", // hoặc cụ thể như "http://localhost:5173"
+			AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+			AllowMethods: "GET,POST,PUT,DELETE,OPTIONS,PATCH",
+		}))
+	}
 
 	// Register static routes for serving uploaded files
 	pkgupload.RegisterStaticRoutes(app, uploadConfig.BaseDir)
@@ -127,7 +146,7 @@ func main() {
 	// Register middleware
 	app.Use(recover.New())
 	app.Use(logger.New())
-	
+
 	// Setup Swagger
 	app.Get("/swagger/*", swagger.New(swagger.Config{
 		URL:         "/swagger/doc.json",
@@ -196,6 +215,7 @@ func main() {
 	// Register user routes - Admin only
 	adminRoutes.Get("/users", userHandler.GetUsers)
 	adminRoutes.Get("/users/:id", userHandler.GetUserByID)
+	adminRoutes.Patch("/users/:id/telegram", userHandler.UpdateTelegramID)
 
 	// Register product routes using the RegisterRoutes method
 	productHandler.RegisterRoutes(adminOrAgentRoutes, middleware.JWTAuth(jwtService))

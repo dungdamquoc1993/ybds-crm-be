@@ -5,6 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"github.com/ybds/internal/api/requests"
 	"github.com/ybds/internal/api/responses"
 	"github.com/ybds/internal/models/account"
 	"github.com/ybds/internal/services"
@@ -30,6 +31,7 @@ func (h *UserHandler) RegisterRoutes(router fiber.Router, authMiddleware fiber.H
 
 	users.Get("/", h.GetUsers)
 	users.Get("/:id", h.GetUserByID)
+	users.Patch("/:id/telegram", h.UpdateTelegramID)
 }
 
 // convertUserToResponse converts a user model to a user response
@@ -41,14 +43,15 @@ func convertUserToResponse(user *account.User) responses.UserDetailResponse {
 	}
 
 	return responses.UserDetailResponse{
-		ID:        user.ID,
-		Username:  user.Username,
-		Email:     user.Email,
-		Phone:     user.Phone,
-		IsActive:  user.IsActive,
-		Roles:     roles,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
+		ID:         user.ID,
+		Username:   user.Username,
+		Email:      user.Email,
+		Phone:      user.Phone,
+		IsActive:   user.IsActive,
+		TelegramID: user.TelegramID,
+		Roles:      roles,
+		CreatedAt:  user.CreatedAt,
+		UpdatedAt:  user.UpdatedAt,
 	}
 }
 
@@ -169,6 +172,86 @@ func (h *UserHandler) GetUserByID(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(responses.SingleUserResponse{
 		Success: true,
 		Message: "User retrieved successfully",
+		Data:    userResponse,
+	})
+}
+
+// UpdateTelegramID godoc
+// @Summary Update a user's Telegram ID
+// @Description Update the Telegram ID for a specific user
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param id path string true "User ID"
+// @Param telegramRequest body requests.UpdateTelegramIDRequest true "Telegram ID info"
+// @Success 200 {object} responses.SingleUserResponse
+// @Failure 400 {object} responses.ErrorResponse
+// @Failure 404 {object} responses.ErrorResponse
+// @Failure 500 {object} responses.ErrorResponse
+// @Router /api/users/{id}/telegram [patch]
+// @Security ApiKeyAuth
+func (h *UserHandler) UpdateTelegramID(c *fiber.Ctx) error {
+	// Parse user ID from path
+	idStr := c.Params("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(responses.ErrorResponse{
+			Success: false,
+			Message: "Invalid user ID format",
+			Error:   err.Error(),
+		})
+	}
+
+	// Parse request body
+	var request requests.UpdateTelegramIDRequest
+	if err := c.BodyParser(&request); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(responses.ErrorResponse{
+			Success: false,
+			Message: "Invalid request format",
+			Error:   err.Error(),
+		})
+	}
+
+	// Validate request
+	if err := request.Validate(); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(responses.ErrorResponse{
+			Success: false,
+			Message: "Validation failed",
+			Error:   err.Error(),
+		})
+	}
+
+	// Update user's Telegram ID
+	result, err := h.userService.UpdateTelegramID(id, request.TelegramID)
+	if err != nil {
+		statusCode := fiber.StatusInternalServerError
+		if result != nil && result.Error == "User not found" {
+			statusCode = fiber.StatusNotFound
+		}
+		return c.Status(statusCode).JSON(responses.ErrorResponse{
+			Success: false,
+			Message: result.Message,
+			Error:   result.Error,
+		})
+	}
+
+	// Get updated user
+	user, err := h.userService.GetUserByID(id)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(responses.ErrorResponse{
+			Success: false,
+			Message: "Failed to retrieve updated user",
+			Error:   err.Error(),
+		})
+	}
+
+	// Convert to response format
+	userResponse := convertUserToResponse(user)
+
+	// Return response
+	return c.Status(fiber.StatusOK).JSON(responses.SingleUserResponse{
+		Success: true,
+		Message: "Telegram ID updated successfully",
 		Data:    userResponse,
 	})
 }

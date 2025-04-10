@@ -13,6 +13,7 @@ type User struct {
 	PasswordHash string `gorm:"column:password_hash;type:text;not null" json:"-"`
 	Salt         string `gorm:"column:salt;type:text;not null" json:"-"`
 	IsActive     bool   `gorm:"column:is_active;not null;default:true;index" json:"is_active"`
+	TelegramID   int64  `gorm:"column:telegram_id;index" json:"telegram_id"`
 	Roles        []Role `gorm:"many2many:user_roles;" json:"roles,omitempty"`
 }
 

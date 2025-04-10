@@ -388,6 +388,46 @@ func (s *UserService) DeleteUser(id uuid.UUID) (*UserResult, error) {
 	}, nil
 }
 
+// UpdateTelegramID updates a user's telegram ID
+func (s *UserService) UpdateTelegramID(userID uuid.UUID, telegramID int64) (*UserResult, error) {
+	// Get user by ID
+	user, err := s.GetUserByID(userID)
+	if err != nil {
+		return &UserResult{
+			Success: false,
+			Message: "User not found",
+			Error:   "User not found",
+		}, err
+	}
+
+	// Update telegram ID
+	user.TelegramID = telegramID
+
+	// Save the user
+	if err := s.UserRepo.UpdateUser(user); err != nil {
+		return &UserResult{
+			Success: false,
+			Message: "Failed to update telegram ID",
+			Error:   "Database error",
+		}, err
+	}
+
+	// Get user roles
+	var roles []string
+	for _, role := range user.Roles {
+		roles = append(roles, string(role.Name))
+	}
+
+	return &UserResult{
+		Success:  true,
+		Message:  "Telegram ID updated successfully",
+		UserID:   user.ID,
+		Username: user.Username,
+		Email:    user.Email,
+		Roles:    roles,
+	}, nil
+}
+
 // Helper function for min
 func min(a, b int) int {
 	if a < b {

@@ -614,7 +614,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Get a specific order with its items, shipment details, and customer information",
+                "description": "Get a specific order with all its items and details",
                 "consumes": [
                     "application/json"
                 ],
@@ -2115,7 +2115,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Get a list of all users with their addresses and roles",
+                "description": "Get a list of all users with their roles",
                 "consumes": [
                     "application/json"
                 ],
@@ -2187,7 +2187,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Get a specific user with their addresses and roles",
+                "description": "Get a specific user with their roles",
                 "consumes": [
                     "application/json"
                 ],
@@ -2211,7 +2211,71 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/responses.UserDetailResponse"
+                            "$ref": "#/definitions/responses.SingleUserResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/users/{id}/telegram": {
+            "patch": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Update the Telegram ID for a specific user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Update a user's Telegram ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Telegram ID info",
+                        "name": "telegramRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.UpdateTelegramIDRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.SingleUserResponse"
                         }
                     },
                     "400": {
@@ -2564,41 +2628,11 @@ const docTemplate = `{
                 }
             }
         },
-        "responses.AddressResponse": {
+        "requests.UpdateTelegramIDRequest": {
             "type": "object",
             "properties": {
-                "address": {
-                    "type": "string"
-                },
-                "city": {
-                    "type": "string"
-                },
-                "country": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "district": {
-                    "type": "string"
-                },
-                "guest_id": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_default": {
-                    "type": "boolean"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "string"
-                },
-                "ward": {
-                    "type": "string"
+                "telegram_id": {
+                    "type": "integer"
                 }
             }
         },
@@ -2887,6 +2921,9 @@ const docTemplate = `{
                 "product_id": {
                     "type": "string"
                 },
+                "product_image": {
+                    "type": "string"
+                },
                 "product_name": {
                     "type": "string"
                 },
@@ -3095,6 +3132,20 @@ const docTemplate = `{
                 }
             }
         },
+        "responses.SingleUserResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/responses.UserDetailResponse"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
         "responses.SuccessResponse": {
             "type": "object",
             "properties": {
@@ -3109,19 +3160,10 @@ const docTemplate = `{
         "responses.UserDetailResponse": {
             "type": "object",
             "properties": {
-                "addresses": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/responses.AddressResponse"
-                    }
-                },
                 "created_at": {
                     "type": "string"
                 },
                 "email": {
-                    "type": "string"
-                },
-                "first_name": {
                     "type": "string"
                 },
                 "id": {
@@ -3129,9 +3171,6 @@ const docTemplate = `{
                 },
                 "is_active": {
                     "type": "boolean"
-                },
-                "last_name": {
-                    "type": "string"
                 },
                 "phone": {
                     "type": "string"
@@ -3141,6 +3180,9 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "telegram_id": {
+                    "type": "integer"
                 },
                 "updated_at": {
                     "type": "string"

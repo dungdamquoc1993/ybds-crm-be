@@ -128,3 +128,19 @@ func (r *UserRepository) RemoveRoleFromUser(userID, roleID uuid.UUID) error {
 	return r.db.Where("user_id = ? AND role_id = ?", userID, roleID).
 		Delete(&account.UserRole{}).Error
 }
+
+// GetAdminUsers retrieves all active admin users
+func (r *UserRepository) GetAdminUsers() ([]account.User, error) {
+	var users []account.User
+
+	// Using explicit fully qualified table names with schema prefix
+	err := r.db.Table("users").
+		Joins("JOIN user_roles ON users.id = user_roles.user_id").
+		Joins("JOIN roles ON user_roles.role_id = roles.id").
+		Where("roles.name = ?", account.RoleAdmin).
+		Where("users.is_active = ?", true).
+		Select("users.*").
+		Find(&users).Error
+
+	return users, err
+}
