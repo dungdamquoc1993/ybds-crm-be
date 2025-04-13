@@ -20,9 +20,11 @@ func RoleGuard(requiredRoles ...string) fiber.Handler {
 			for _, role := range userRoles {
 				if role == required {
 					hasRequiredRole = true
+					// Once we find a matching role, we can skip checking other roles
 					break
 				}
 			}
+			// If we found a matching role, no need to check other required roles
 			if hasRequiredRole {
 				break
 			}

@@ -205,7 +205,7 @@ func main() {
 	authenticated.Use(middleware.JWTAuth(jwtService))
 
 	// Create admin-only routes
-	adminRoutes := authenticated.Group("/")
+	adminRoutes := authenticated.Group("/admin")
 	adminRoutes.Use(middleware.AdminGuard())
 
 	// Create routes for both admin and agent
@@ -213,21 +213,16 @@ func main() {
 	adminOrAgentRoutes.Use(middleware.AdminOrAgentGuard())
 
 	// Register user routes - Admin only
-	adminRoutes.Get("/users", userHandler.GetUsers)
-	adminRoutes.Get("/users/:id", userHandler.GetUserByID)
-	adminRoutes.Patch("/users/:id/telegram", userHandler.UpdateTelegramID)
+	userHandler.RegisterRoutes(adminRoutes, middleware.JWTAuth(jwtService))
+
+	// Register notification routes - Admin only
+	notificationHandler.RegisterRoutes(adminRoutes, middleware.JWTAuth(jwtService))
 
 	// Register product routes using the RegisterRoutes method
 	productHandler.RegisterRoutes(adminOrAgentRoutes, middleware.JWTAuth(jwtService))
 
 	// Register order routes using the RegisterRoutes method
 	orderHandler.RegisterRoutes(adminOrAgentRoutes, middleware.JWTAuth(jwtService))
-
-	// Register notification routes - Admin or Agent
-	adminOrAgentRoutes.Get("/notifications", notificationHandler.GetNotifications)
-	adminOrAgentRoutes.Get("/notifications/unread", notificationHandler.GetUnreadNotifications)
-	adminOrAgentRoutes.Put("/notifications/:id/read", notificationHandler.MarkAsRead)
-	adminOrAgentRoutes.Put("/notifications/read-all", notificationHandler.MarkAllAsRead)
 
 	// Start server
 	serverPort := fmt.Sprintf(":%s", cfg.Server.Port)

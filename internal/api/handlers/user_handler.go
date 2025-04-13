@@ -69,7 +69,7 @@ func convertUserToResponse(user *account.User) responses.UserDetailResponse {
 // @Success 200 {object} responses.UsersResponse
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /api/users [get]
+// @Router /api/admin/users [get]
 // @Security ApiKeyAuth
 func (h *UserHandler) GetUsers(c *fiber.Ctx) error {
 	// Parse pagination parameters
@@ -141,7 +141,7 @@ func (h *UserHandler) GetUsers(c *fiber.Ctx) error {
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /api/users/{id} [get]
+// @Router /api/admin/users/{id} [get]
 // @Security ApiKeyAuth
 func (h *UserHandler) GetUserByID(c *fiber.Ctx) error {
 	// Parse user ID from path
@@ -188,7 +188,7 @@ func (h *UserHandler) GetUserByID(c *fiber.Ctx) error {
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /api/users/{id}/telegram [patch]
+// @Router /api/admin/users/{id}/telegram [patch]
 // @Security ApiKeyAuth
 func (h *UserHandler) UpdateTelegramID(c *fiber.Ctx) error {
 	// Parse user ID from path

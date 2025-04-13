@@ -674,6 +674,264 @@ info:
   title: YBDS API
   version: "1.0"
 paths:
+  /api/admin/notifications:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all notifications for the current user with pagination
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      - description: Get only unread notifications
+        in: query
+        name: unread_only
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.NotificationsResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get all notifications for the current user
+      tags:
+      - notifications
+  /api/admin/notifications/{id}/read:
+    put:
+      consumes:
+      - application/json
+      description: Mark a specific notification as read
+      parameters:
+      - description: Notification ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Mark a notification as read
+      tags:
+      - notifications
+  /api/admin/notifications/read-all:
+    put:
+      consumes:
+      - application/json
+      description: Mark all notifications for the current user as read
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Mark all notifications as read
+      tags:
+      - notifications
+  /api/admin/notifications/unread:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of unread notifications for the current user
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.NotificationsResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get unread notifications for the current user
+      tags:
+      - notifications
+  /api/admin/users:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all users with their roles
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      - description: Search term
+        in: query
+        name: search
+        type: string
+      - description: Filter by role
+        in: query
+        name: role
+        type: string
+      - description: Filter by active status
+        in: query
+        name: is_active
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.UsersResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get all users with their relationships
+      tags:
+      - users
+  /api/admin/users/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get a specific user with their roles
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.SingleUserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get a user by ID with all relationships
+      tags:
+      - users
+  /api/admin/users/{id}/telegram:
+    patch:
+      consumes:
+      - application/json
+      description: Update the Telegram ID for a specific user
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Telegram ID info
+        in: body
+        name: telegramRequest
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateTelegramIDRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.SingleUserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Update a user's Telegram ID
+      tags:
+      - users
   /api/auth/login:
     post:
       consumes:
@@ -755,142 +1013,6 @@ paths:
       summary: Health check endpoint
       tags:
       - health
-  /api/notifications:
-    get:
-      consumes:
-      - application/json
-      description: Get a list of all notifications for the current user with pagination
-      parameters:
-      - description: Page number
-        in: query
-        name: page
-        type: integer
-      - description: Page size
-        in: query
-        name: page_size
-        type: integer
-      - description: Get only unread notifications
-        in: query
-        name: unread_only
-        type: boolean
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/responses.NotificationsResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-      security:
-      - ApiKeyAuth: []
-      summary: Get all notifications for the current user
-      tags:
-      - notifications
-  /api/notifications/{id}/read:
-    put:
-      consumes:
-      - application/json
-      description: Mark a specific notification as read
-      parameters:
-      - description: Notification ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/responses.SuccessResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-      security:
-      - ApiKeyAuth: []
-      summary: Mark a notification as read
-      tags:
-      - notifications
-  /api/notifications/read-all:
-    put:
-      consumes:
-      - application/json
-      description: Mark all notifications for the current user as read
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/responses.SuccessResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-      security:
-      - ApiKeyAuth: []
-      summary: Mark all notifications as read
-      tags:
-      - notifications
-  /api/notifications/unread:
-    get:
-      consumes:
-      - application/json
-      description: Get a list of unread notifications for the current user
-      parameters:
-      - description: Page number
-        in: query
-        name: page
-        type: integer
-      - description: Page size
-        in: query
-        name: page_size
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/responses.NotificationsResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-      security:
-      - ApiKeyAuth: []
-      summary: Get unread notifications for the current user
-      tags:
-      - notifications
   /api/orders:
     get:
       consumes:
@@ -2089,128 +2211,6 @@ paths:
       summary: Update a price
       tags:
       - products
-  /api/users:
-    get:
-      consumes:
-      - application/json
-      description: Get a list of all users with their roles
-      parameters:
-      - description: Page number
-        in: query
-        name: page
-        type: integer
-      - description: Page size
-        in: query
-        name: page_size
-        type: integer
-      - description: Search term
-        in: query
-        name: search
-        type: string
-      - description: Filter by role
-        in: query
-        name: role
-        type: string
-      - description: Filter by active status
-        in: query
-        name: is_active
-        type: boolean
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/responses.UsersResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-      security:
-      - ApiKeyAuth: []
-      summary: Get all users with their relationships
-      tags:
-      - users
-  /api/users/{id}:
-    get:
-      consumes:
-      - application/json
-      description: Get a specific user with their roles
-      parameters:
-      - description: User ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/responses.SingleUserResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-      security:
-      - ApiKeyAuth: []
-      summary: Get a user by ID with all relationships
-      tags:
-      - users
-  /api/users/{id}/telegram:
-    patch:
-      consumes:
-      - application/json
-      description: Update the Telegram ID for a specific user
-      parameters:
-      - description: User ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Telegram ID info
-        in: body
-        name: telegramRequest
-        required: true
-        schema:
-          $ref: '#/definitions/requests.UpdateTelegramIDRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/responses.SingleUserResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-      security:
-      - ApiKeyAuth: []
-      summary: Update a user's Telegram ID
-      tags:
-      - users
 securityDefinitions:
   ApiKeyAuth:
     description: 'JWT Authorization header using the Bearer scheme. Example: "Bearer

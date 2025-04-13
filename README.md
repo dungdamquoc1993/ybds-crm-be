@@ -788,6 +788,9 @@ const wsUrl =
 ## setup role for user
 
 INSERT INTO user_roles (user_id, role_id)
-SELECT 'put-user-id-here', id
+SELECT '1595d45f-89fc-4c51-9e4b-49b4b189dcce', id
 FROM roles
-WHERE name IN ('admin', 'staff', 'agent');
+WHERE name IN ('agent');
+
+
+swag init -g cmd/server/main.go
