@@ -237,7 +237,7 @@ func TestOrderHandler(t *testing.T) {
 			{
 				PaymentMethod: order.PaymentCash,
 				TotalAmount:   100.0,
-				OrderStatus:   order.OrderPendingConfirmation,
+				OrderStatus:   order.OrderShipmentRequested,
 			},
 			{
 				PaymentMethod: order.PaymentCash,
@@ -285,7 +285,7 @@ func TestOrderHandler(t *testing.T) {
 		testOrder := &order.Order{
 			PaymentMethod: order.PaymentCash,
 			TotalAmount:   100.0,
-			OrderStatus:   order.OrderPendingConfirmation,
+			OrderStatus:   order.OrderShipmentRequested,
 		}
 		testOrder.ID = orderID
 		testOrder.CreatedAt = time.Now()

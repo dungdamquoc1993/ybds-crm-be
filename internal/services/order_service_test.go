@@ -25,7 +25,7 @@ func TestOrderResult(t *testing.T) {
 		Success:   true,
 		Message:   "Order created successfully",
 		OrderID:   orderID,
-		Status:    order.OrderConfirmed,
+		Status:    order.OrderShipmentRequested,
 		Total:     1000.0,
 		CreatedBy: &createdBy,
 	}
@@ -34,7 +34,7 @@ func TestOrderResult(t *testing.T) {
 	assert.True(t, result.Success)
 	assert.Equal(t, "Order created successfully", result.Message)
 	assert.Equal(t, orderID, result.OrderID)
-	assert.Equal(t, order.OrderConfirmed, result.Status)
+	assert.Equal(t, order.OrderShipmentRequested, result.Status)
 	assert.Equal(t, 1000.0, result.Total)
 	assert.Equal(t, &createdBy, result.CreatedBy)
 }
@@ -61,7 +61,7 @@ func TestOrder(t *testing.T) {
 	o := order.Order{
 		PaymentMethod: order.PaymentCash,
 		TotalAmount:   1000.0,
-		OrderStatus:   order.OrderPendingConfirmation,
+		OrderStatus:   order.OrderShipmentRequested,
 	}
 	o.ID = orderID
 	o.CreatedBy = &createdBy
@@ -70,7 +70,7 @@ func TestOrder(t *testing.T) {
 	assert.Equal(t, orderID, o.ID)
 	assert.Equal(t, order.PaymentCash, o.PaymentMethod)
 	assert.Equal(t, 1000.0, o.TotalAmount)
-	assert.Equal(t, order.OrderPendingConfirmation, o.OrderStatus)
+	assert.Equal(t, order.OrderShipmentRequested, o.OrderStatus)
 	assert.Equal(t, &createdBy, o.CreatedBy)
 }
 

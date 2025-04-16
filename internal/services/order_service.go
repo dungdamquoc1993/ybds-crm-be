@@ -128,7 +128,7 @@ func (s *OrderService) CreateOrder(
 	// Create order
 	o := &order.Order{
 		PaymentMethod:    paymentMethod,
-		OrderStatus:      order.OrderPendingConfirmation,
+		OrderStatus:      order.OrderShipmentRequested,
 		TotalAmount:      0,
 		DiscountAmount:   discountAmount,
 		DiscountReason:   discountReason,
@@ -288,6 +288,11 @@ func (s *OrderService) UpdateOrderStatus(id uuid.UUID, status order.OrderStatus)
 		}, err
 	}
 
+	// NOTE: The order status flow has been updated.
+	// OrderPendingConfirmation and OrderConfirmed statuses have been removed.
+	// OrderShipmentRequested is now the default initial status.
+	// Test files need to be updated to reflect these changes.
+
 	// Check if status transition is valid
 	if !isValidStatusTransition(o.OrderStatus, status) {
 		return &OrderResult{
@@ -349,10 +354,10 @@ func (s *OrderService) UpdateOrderStatus(id uuid.UUID, status order.OrderStatus)
 
 		var event string
 		switch status {
-		case order.OrderConfirmed:
-			event = "confirmed"
-		case order.OrderShipped:
-			event = "shipped"
+		case order.OrderPicked:
+			event = "picked"
+		case order.OrderDelivering:
+			event = "delivering"
 		case order.OrderDelivered:
 			event = "delivered"
 		case order.OrderCanceled:
@@ -400,8 +405,8 @@ func (s *OrderService) handleInventoryForStatusChange(tx *gorm.DB, o *order.Orde
 			}
 		}
 
-	// When canceling an order that was in packed or shipped status, increase inventory
-	case newStatus == order.OrderCanceled && (oldStatus == order.OrderPacked || oldStatus == order.OrderShipped):
+	// When canceling an order that was in packed or picked status, increase inventory
+	case newStatus == order.OrderCanceled && (oldStatus == order.OrderPacked || oldStatus == order.OrderPicked):
 		for _, item := range items {
 			if err := s.ProductService.ReleaseInventory(item.InventoryID, item.Quantity); err != nil {
 				return err
@@ -416,34 +421,33 @@ func (s *OrderService) handleInventoryForStatusChange(tx *gorm.DB, o *order.Orde
 func isValidStatusTransition(oldStatus, newStatus order.OrderStatus) bool {
 	// Allow transition to canceled from most statuses except a few
 	if newStatus == order.OrderCanceled {
-		// Cannot cancel if already returned, in return processing, or delivered
+		// Cannot cancel if already returned, in return processing, delivered, or delivering
 		return oldStatus != order.OrderReturned &&
 			oldStatus != order.OrderReturnProcessing &&
-			oldStatus != order.OrderDelivered
+			oldStatus != order.OrderDelivered &&
+			oldStatus != order.OrderDelivering
 	}
 
 	// Define valid transitions for normal flow
 	validTransitions := map[order.OrderStatus][]order.OrderStatus{
-		order.OrderPendingConfirmation: {
-			order.OrderConfirmed,
-			order.OrderCanceled,
-		},
-		order.OrderConfirmed: {
-			order.OrderShipmentRequested,
-			order.OrderPacked,
-			order.OrderCanceled,
-		},
 		order.OrderShipmentRequested: {
 			order.OrderPacked,
+			order.OrderPicked,
+			order.OrderDelivering, // Allow direct transition to delivering
 			order.OrderCanceled,
 		},
 		order.OrderPacked: {
-			order.OrderShipped,
+			order.OrderPicked,
+			order.OrderDelivering, // Allow direct transition to delivering in case picked is skipped
 			order.OrderCanceled,
 		},
-		order.OrderShipped: {
-			order.OrderDelivered,
+		order.OrderPicked: {
+			order.OrderDelivering,
 			order.OrderCanceled,
+		},
+		order.OrderDelivering: {
+			order.OrderDelivered,
+			// Note: Cannot be canceled once in delivering state
 		},
 		order.OrderDelivered: {
 			order.OrderReturnProcessing,
@@ -481,13 +485,13 @@ func (s *OrderService) DeleteOrder(id uuid.UUID) (*OrderResult, error) {
 		}, err
 	}
 
-	// Only allow deletion of pending or canceled orders
-	if o.OrderStatus != order.OrderPendingConfirmation && o.OrderStatus != order.OrderCanceled {
+	// Only allow deletion of shipment_requested or canceled orders
+	if o.OrderStatus != order.OrderShipmentRequested && o.OrderStatus != order.OrderCanceled {
 		return &OrderResult{
 			Success: false,
 			Message: "Order deletion failed",
-			Error:   "Only pending or canceled orders can be deleted",
-		}, fmt.Errorf("only pending or canceled orders can be deleted")
+			Error:   "Only shipment_requested or canceled orders can be deleted",
+		}, fmt.Errorf("only shipment_requested or canceled orders can be deleted")
 	}
 
 	// Start transaction
@@ -558,7 +562,7 @@ func (s *OrderService) CreateShipment(orderID uuid.UUID, trackingNumber, carrier
 	}
 
 	// Check if order status allows shipment
-	if o.OrderStatus != order.OrderConfirmed && o.OrderStatus != order.OrderShipmentRequested && o.OrderStatus != order.OrderPacked {
+	if o.OrderStatus != order.OrderShipmentRequested && o.OrderStatus != order.OrderPacked {
 		return fmt.Errorf("order status does not allow shipment creation")
 	}
 
@@ -585,14 +589,6 @@ func (s *OrderService) CreateShipment(orderID uuid.UUID, trackingNumber, carrier
 	if err := tx.Create(shipment).Error; err != nil {
 		tx.Rollback()
 		return err
-	}
-
-	// Update order status to shipment requested if not already
-	if o.OrderStatus == order.OrderConfirmed {
-		if err := tx.Model(o).Update("order_status", order.OrderShipmentRequested).Error; err != nil {
-			tx.Rollback()
-			return err
-		}
 	}
 
 	// Commit transaction
@@ -676,7 +672,7 @@ func (s *OrderService) AddOrderItem(orderID uuid.UUID, inventoryID uuid.UUID, qu
 	}
 
 	// Check if order status allows adding items
-	if o.OrderStatus != order.OrderPendingConfirmation && o.OrderStatus != order.OrderConfirmed {
+	if o.OrderStatus != order.OrderShipmentRequested {
 		return fmt.Errorf("order status does not allow adding items")
 	}
 
@@ -723,6 +719,12 @@ func (s *OrderService) AddOrderItem(orderID uuid.UUID, inventoryID uuid.UUID, qu
 
 	// Update order total
 	o.TotalAmount += price.Price * float64(quantity)
+	// Recalculate final total amount
+	o.FinalTotalAmount = o.TotalAmount - o.DiscountAmount
+	if o.FinalTotalAmount < 0 {
+		o.FinalTotalAmount = 0 // Ensure final amount is not negative
+	}
+
 	if err := tx.Save(o).Error; err != nil {
 		tx.Rollback()
 		return err
@@ -747,7 +749,7 @@ func (s *OrderService) UpdateOrderItem(id uuid.UUID, quantity int) error {
 	}
 
 	// Check if order status allows updating items
-	if o.OrderStatus != order.OrderPendingConfirmation && o.OrderStatus != order.OrderConfirmed {
+	if o.OrderStatus != order.OrderShipmentRequested {
 		return fmt.Errorf("order status does not allow updating items")
 	}
 
@@ -781,6 +783,12 @@ func (s *OrderService) UpdateOrderItem(id uuid.UUID, quantity int) error {
 
 	// Update order total
 	o.TotalAmount += priceDifference
+	// Recalculate final total amount
+	o.FinalTotalAmount = o.TotalAmount - o.DiscountAmount
+	if o.FinalTotalAmount < 0 {
+		o.FinalTotalAmount = 0 // Ensure final amount is not negative
+	}
+
 	if err := tx.Save(o).Error; err != nil {
 		tx.Rollback()
 		return err
@@ -805,7 +813,7 @@ func (s *OrderService) DeleteOrderItem(id uuid.UUID) error {
 	}
 
 	// Check if order status allows deleting items
-	if o.OrderStatus != order.OrderPendingConfirmation && o.OrderStatus != order.OrderConfirmed {
+	if o.OrderStatus != order.OrderShipmentRequested {
 		return fmt.Errorf("order status does not allow deleting items")
 	}
 
@@ -817,6 +825,12 @@ func (s *OrderService) DeleteOrderItem(id uuid.UUID) error {
 
 	// Update order total
 	o.TotalAmount -= item.PriceAtOrder * float64(item.Quantity)
+	// Recalculate final total amount
+	o.FinalTotalAmount = o.TotalAmount - o.DiscountAmount
+	if o.FinalTotalAmount < 0 {
+		o.FinalTotalAmount = 0 // Ensure final amount is not negative
+	}
+
 	if err := tx.Save(o).Error; err != nil {
 		tx.Rollback()
 		return err

@@ -20,24 +20,19 @@ const (
 type OrderStatus string
 
 const (
-	// OrderPendingConfirmation means the order is waiting for confirmation
-	OrderPendingConfirmation OrderStatus = "pending_confirmation"
-
-	// OrderConfirmed means the order has been confirmed
-	OrderConfirmed OrderStatus = "confirmed"
-
 	// OrderShipmentRequested means a shipment has been requested for the order
+	// This is the initial status when an order is created
 	OrderShipmentRequested OrderStatus = "shipment_requested"
 
 	// OrderPacked means the order has been packed and is ready for shipping
 	OrderPacked OrderStatus = "packed"
 
-	// OrderShipped means the order has been picked up by the shipping company corresponding to the picked status in GHN
-	OrderShipped OrderStatus = "shipped"
+	// OrderPicked means the order has been picked up by the shipping company corresponding to the picked status in GHN
+	OrderPicked OrderStatus = "picked"
 
 	// OrderDelivering means the order is being delivered by the shipping company
 	// corresponding to the status in GHN: storing, transporting, delivering, delivery_fail, waiting_to_return
-	OrderDelivering OrderStatus = "delivering" // this status is not apply to application yet
+	OrderDelivering OrderStatus = "delivering" // this status is now active in the application
 
 	// OrderDelivered means the order has been delivered by the shipping company corresponding to the delivered status in GHN
 	OrderDelivered OrderStatus = "delivered"
@@ -61,7 +56,7 @@ type Order struct {
 	DiscountAmount   float64       `gorm:"column:discount_amount;type:decimal(10,2);not null;default:0" json:"discount_amount"`
 	DiscountReason   string        `gorm:"column:discount_reason;type:varchar(255)" json:"discount_reason"`
 	FinalTotalAmount float64       `gorm:"column:final_total_amount;type:decimal(10,2);not null" json:"final_total_amount"`
-	OrderStatus      OrderStatus   `gorm:"column:order_status;type:varchar(50);not null;default:'pending_confirmation';index" json:"order_status"`
+	OrderStatus      OrderStatus   `gorm:"column:order_status;type:varchar(50);not null;default:'shipment_requested';index" json:"order_status"`
 	Notes            string        `gorm:"column:notes;type:text" json:"notes"`
 	// Shipping address fields
 	ShippingAddress  string `gorm:"column:shipping_address;type:text" json:"shipping_address"`
