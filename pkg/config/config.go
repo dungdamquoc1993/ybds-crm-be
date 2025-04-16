@@ -21,6 +21,7 @@ type Config struct {
 	JWT            JWTConfig
 	Upload         UploadConfig
 	Telegram       TelegramConfig
+	AWS            AWSConfig
 }
 
 // DatabaseConfig holds all database related configuration
@@ -54,6 +55,15 @@ type UploadConfig struct {
 // TelegramConfig holds all Telegram related configuration
 type TelegramConfig struct {
 	BotToken string
+}
+
+// AWSConfig holds all AWS related configuration
+type AWSConfig struct {
+	AccessKey string
+	SecretKey string
+	Region    string
+	Bucket    string
+	Prefix    string
 }
 
 // LoadConfig loads the configuration from .env file and environment variables
@@ -120,6 +130,13 @@ func LoadConfig() (*Config, error) {
 		Telegram: TelegramConfig{
 			BotToken: v.GetString("telegram.bot_token"),
 		},
+		AWS: AWSConfig{
+			AccessKey: v.GetString("aws.access_key"),
+			SecretKey: v.GetString("aws.secret_key"),
+			Region:    v.GetString("aws.region"),
+			Bucket:    v.GetString("aws.bucket"),
+			Prefix:    v.GetString("aws.prefix"),
+		},
 	}
 
 	// Ensure upload directory exists
@@ -185,6 +202,13 @@ func mapEnvToConfig(v *viper.Viper) {
 
 	// Telegram mapping
 	v.BindEnv("telegram.bot_token", "TELEGRAM_BOT_TOKEN")
+
+	// AWS mapping
+	v.BindEnv("aws.access_key", "AWS_ACCESS_KEY_ID")
+	v.BindEnv("aws.secret_key", "AWS_SECRET_ACCESS_KEY")
+	v.BindEnv("aws.region", "AWS_REGION")
+	v.BindEnv("aws.bucket", "AWS_BUCKET_NAME")
+	v.BindEnv("aws.prefix", "AWS_S3_PREFIX")
 }
 
 // ensureUploadDir ensures that the upload directory exists

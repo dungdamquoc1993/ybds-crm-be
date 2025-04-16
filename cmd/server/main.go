@@ -100,6 +100,18 @@ func main() {
 	// Initialize upload service
 	uploadConfig := pkgupload.NewConfig(cfg.Upload.Dir)
 	uploadConfig.WithSubDir("products")
+
+	// Check if S3 is configured
+	if cfg.AWS.AccessKey != "" && cfg.AWS.SecretKey != "" && cfg.AWS.Region != "" && cfg.AWS.Bucket != "" {
+		uploadConfig.WithS3(
+			cfg.AWS.AccessKey,
+			cfg.AWS.SecretKey,
+			cfg.AWS.Region,
+			cfg.AWS.Bucket,
+			cfg.AWS.Prefix,
+		)
+	}
+
 	uploadService, err := pkgupload.NewService(uploadConfig)
 	if err != nil {
 		log.Fatalf("Failed to initialize upload service: %v", err)
@@ -141,7 +153,12 @@ func main() {
 	}
 
 	// Register static routes for serving uploaded files
-	pkgupload.RegisterStaticRoutes(app, uploadConfig.BaseDir)
+	if uploadConfig.StorageType == pkgupload.StorageTypeLocal {
+		// Create a filesystem that serves files from the upload directory
+		app.Static("/uploads", uploadConfig.GetUploadDir(), fiber.Static{
+			Browse: false,
+		})
+	}
 
 	// Register middleware
 	app.Use(recover.New())

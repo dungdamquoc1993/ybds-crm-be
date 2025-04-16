@@ -5,6 +5,16 @@ import (
 	"path/filepath"
 )
 
+// StorageType defines the type of storage to use
+type StorageType string
+
+const (
+	// StorageTypeLocal indicates local file storage
+	StorageTypeLocal StorageType = "local"
+	// StorageTypeS3 indicates AWS S3 storage
+	StorageTypeS3 StorageType = "s3"
+)
+
 // Config defines the configuration for file uploads
 type Config struct {
 	// BaseDir is the base directory for file uploads
@@ -18,6 +28,21 @@ type Config struct {
 
 	// SubDir is an optional subdirectory within BaseDir
 	SubDir string
+
+	// StorageType determines where to store files (local or s3)
+	StorageType StorageType
+
+	// S3Config contains AWS S3 configuration
+	S3Config *S3Config
+}
+
+// S3Config contains configuration for AWS S3
+type S3Config struct {
+	AccessKey string
+	SecretKey string
+	Region    string
+	Bucket    string
+	Prefix    string
 }
 
 // NewConfig creates a new upload configuration with default values
@@ -30,8 +55,22 @@ func NewConfig(baseDir string) *Config {
 			"image/gif":  true,
 			"image/webp": true,
 		},
-		MaxSize: 10, // 10MB default
+		MaxSize:     10, // 10MB default
+		StorageType: StorageTypeLocal,
 	}
+}
+
+// WithS3 configures the upload service to use AWS S3
+func (c *Config) WithS3(accessKey, secretKey, region, bucket string, prefix string) *Config {
+	c.StorageType = StorageTypeS3
+	c.S3Config = &S3Config{
+		AccessKey: accessKey,
+		SecretKey: secretKey,
+		Region:    region,
+		Bucket:    bucket,
+		Prefix:    prefix,
+	}
+	return c
 }
 
 // WithSubDir sets the subdirectory for uploads
@@ -74,8 +113,14 @@ func (c *Config) GetUploadDir() string {
 
 // Validate checks if the configuration is valid
 func (c *Config) Validate() error {
-	if c.BaseDir == "" {
-		return fmt.Errorf("base directory is required")
+	if c.StorageType == StorageTypeLocal && c.BaseDir == "" {
+		return fmt.Errorf("base directory is required for local storage")
+	}
+	if c.StorageType == StorageTypeS3 && c.S3Config == nil {
+		return fmt.Errorf("S3 configuration is required for S3 storage")
+	}
+	if c.StorageType == StorageTypeS3 && (c.S3Config.AccessKey == "" || c.S3Config.SecretKey == "" || c.S3Config.Bucket == "" || c.S3Config.Region == "") {
+		return fmt.Errorf("incomplete S3 configuration")
 	}
 	if c.MaxSize <= 0 {
 		return fmt.Errorf("max size must be greater than 0")

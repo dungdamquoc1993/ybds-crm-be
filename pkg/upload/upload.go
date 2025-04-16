@@ -22,9 +22,15 @@ type UploadResult struct {
 	URL         string `json:"url"`
 }
 
+// MultipleUploadResult represents the result of multiple file uploads
+type MultipleUploadResult struct {
+	Files []*UploadResult `json:"files"`
+}
+
 // Service handles file uploads
 type Service struct {
-	config *Config
+	config   *Config
+	s3Client *S3Client
 }
 
 // NewService creates a new upload service
@@ -33,19 +39,36 @@ func NewService(config *Config) (*Service, error) {
 		return nil, fmt.Errorf("invalid upload configuration: %w", err)
 	}
 
-	// Ensure upload directory exists
-	uploadDir := config.GetUploadDir()
-	if err := os.MkdirAll(uploadDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create upload directory: %w", err)
+	service := &Service{
+		config: config,
 	}
 
-	return &Service{
-		config: config,
-	}, nil
+	// Initialize S3 client if using S3 storage
+	if config.StorageType == StorageTypeS3 {
+		s3Client, err := NewS3Client(
+			config.S3Config.AccessKey,
+			config.S3Config.SecretKey,
+			config.S3Config.Region,
+			config.S3Config.Bucket,
+			config.S3Config.Prefix,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize S3 client: %w", err)
+		}
+		service.s3Client = s3Client
+	} else if config.StorageType == StorageTypeLocal {
+		// Ensure upload directory exists for local storage
+		uploadDir := config.GetUploadDir()
+		if err := os.MkdirAll(uploadDir, 0755); err != nil {
+			return nil, fmt.Errorf("failed to create upload directory: %w", err)
+		}
+	}
+
+	return service, nil
 }
 
 // Upload handles a file upload from a multipart form
-func (s *Service) Upload(file *multipart.FileHeader, prefix string) (*UploadResult, error) {
+func (s *Service) Upload(file *multipart.FileHeader, subDir string) (*UploadResult, error) {
 	// Open the uploaded file
 	src, err := file.Open()
 	if err != nil {
@@ -79,8 +102,19 @@ func (s *Service) Upload(file *multipart.FileHeader, prefix string) (*UploadResu
 		return nil, fmt.Errorf("file size exceeds the limit of %d MB", s.config.MaxSize)
 	}
 
+	// Based on storage type, upload to either local storage or S3
+	if s.config.StorageType == StorageTypeS3 {
+		return s.s3Client.UploadFile(file, subDir)
+	}
+
+	// Otherwise, upload to local storage
+	return s.uploadToLocalStorage(file, src, contentType, subDir)
+}
+
+// uploadToLocalStorage saves the file to the local filesystem
+func (s *Service) uploadToLocalStorage(file *multipart.FileHeader, src io.Reader, contentType, subDir string) (*UploadResult, error) {
 	// Generate a unique filename
-	filename := s.generateFilename(file.Filename, prefix)
+	filename := s.generateFilename(file.Filename, subDir)
 
 	// Create the destination file
 	uploadDir := s.config.GetUploadDir()
@@ -110,13 +144,47 @@ func (s *Service) Upload(file *multipart.FileHeader, prefix string) (*UploadResu
 	}, nil
 }
 
-// Delete removes a file from the upload directory
+// UploadMultiple handles multiple file uploads
+func (s *Service) UploadMultiple(files []*multipart.FileHeader, subDir string) (*MultipleUploadResult, error) {
+	if len(files) == 0 {
+		return nil, fmt.Errorf("no files provided")
+	}
+
+	// If using S3, we can use the batch upload capability
+	if s.config.StorageType == StorageTypeS3 {
+		results, err := s.s3Client.UploadMultipleFiles(files, subDir)
+		if err != nil {
+			return nil, err
+		}
+		return &MultipleUploadResult{Files: results}, nil
+	}
+
+	// Otherwise, upload each file individually to local storage
+	results := make([]*UploadResult, 0, len(files))
+	for _, file := range files {
+		result, err := s.Upload(file, subDir)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, result)
+	}
+
+	return &MultipleUploadResult{Files: results}, nil
+}
+
+// Delete removes a file from storage
 func (s *Service) Delete(filename string) error {
 	// Validate filename to prevent directory traversal
 	if strings.Contains(filename, "..") || strings.Contains(filename, "/") || strings.Contains(filename, "\\") {
 		return fmt.Errorf("invalid filename")
 	}
 
+	// Based on storage type, delete from either local storage or S3
+	if s.config.StorageType == StorageTypeS3 {
+		return s.s3Client.DeleteFile(filename)
+	}
+
+	// Otherwise, delete from local storage
 	// Get the full path
 	path := filepath.Join(s.config.GetUploadDir(), filename)
 
@@ -134,7 +202,7 @@ func (s *Service) Delete(filename string) error {
 }
 
 // generateFilename creates a unique filename for the uploaded file
-func (s *Service) generateFilename(originalFilename, prefix string) string {
+func (s *Service) generateFilename(originalFilename, subDir string) string {
 	// Extract file extension
 	ext := filepath.Ext(originalFilename)
 
@@ -143,15 +211,15 @@ func (s *Service) generateFilename(originalFilename, prefix string) string {
 	_, err := rand.Read(randomBytes)
 	if err != nil {
 		// Fallback to timestamp if random generation fails
-		return fmt.Sprintf("%s_%d%s", prefix, time.Now().UnixNano(), ext)
+		return fmt.Sprintf("%s_%d%s", subDir, time.Now().UnixNano(), ext)
 	}
 
 	// Format the filename with prefix, timestamp, and random string
 	timestamp := time.Now().Format("20060102_150405")
 	randomStr := hex.EncodeToString(randomBytes)
 
-	if prefix != "" {
-		return fmt.Sprintf("%s_%s_%s%s", prefix, timestamp, randomStr, ext)
+	if subDir != "" {
+		return fmt.Sprintf("%s_%s_%s%s", subDir, timestamp, randomStr, ext)
 	}
 
 	return fmt.Sprintf("%s_%s%s", timestamp, randomStr, ext)

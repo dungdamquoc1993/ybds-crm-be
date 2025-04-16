@@ -636,6 +636,21 @@ definitions:
           $ref: '#/definitions/responses.UserDetailResponse'
         type: array
     type: object
+  services.MultipleProductImageResult:
+    properties:
+      error:
+        type: string
+      images:
+        items:
+          $ref: '#/definitions/services.ProductImageResult'
+        type: array
+      message:
+        type: string
+      product_id:
+        type: string
+      success:
+        type: boolean
+    type: object
   services.ProductImageResult:
     properties:
       error:
@@ -1886,6 +1901,58 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Set an image as the primary image for a product
+      tags:
+      - product-images
+  /api/products/{id}/images/multiple:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload multiple images for a product at once. Images are stored
+        at /uploads/products/ path.
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 'Image files (supported formats: JPG, PNG, GIF) - can upload
+          multiple files'
+        in: formData
+        name: files
+        required: true
+        type: file
+      - description: 'Index of the image to set as primary (0-based, default: -1 which
+          means don''t set any as primary)'
+        in: formData
+        name: primary_index
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Returns details of all uploaded images
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/services.MultipleProductImageResult'
+              type: object
+        "400":
+          description: Invalid request or file format
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Product not found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Server error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Upload multiple images for a product
       tags:
       - product-images
   /api/products/{id}/images/reorder:

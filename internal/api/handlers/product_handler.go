@@ -76,6 +76,7 @@ func (h *ProductHandler) RegisterRoutes(router fiber.Router, authMiddleware fibe
 	// Image routes
 	products.Get("/:id/images", h.GetProductImages)
 	products.Post("/:id/images", h.UploadProductImage)
+	products.Post("/:id/images/multiple", h.UploadMultipleProductImages)
 	products.Put("/:id/images/:imageId/primary", h.SetPrimaryProductImage)
 	products.Put("/:id/images/reorder", h.ReorderProductImages)
 	products.Delete("/:id/images/:imageId", h.DeleteProductImage)
@@ -1242,6 +1243,86 @@ func (h *ProductHandler) DeleteProductImage(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "Image deleted successfully",
+		"data":    result,
+	})
+}
+
+// UploadMultipleProductImages godoc
+// @Summary Upload multiple images for a product
+// @Description Upload multiple images for a product at once. Images are stored at /uploads/products/ path.
+// @Tags product-images
+// @Accept multipart/form-data
+// @Produce json
+// @Param id path string true "Product ID"
+// @Param files formData file true "Image files (supported formats: JPG, PNG, GIF) - can upload multiple files"
+// @Param primary_index formData integer false "Index of the image to set as primary (0-based, default: -1 which means don't set any as primary)"
+// @Success 200 {object} responses.SuccessResponse{data=services.MultipleProductImageResult} "Returns details of all uploaded images"
+// @Failure 400 {object} responses.ErrorResponse "Invalid request or file format"
+// @Failure 404 {object} responses.ErrorResponse "Product not found"
+// @Failure 500 {object} responses.ErrorResponse "Server error"
+// @Router /api/products/{id}/images/multiple [post]
+// @Security ApiKeyAuth
+func (h *ProductHandler) UploadMultipleProductImages(c *fiber.Ctx) error {
+	// Parse product ID
+	idStr := c.Params("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(responses.ErrorResponse{
+			Success: false,
+			Message: "Invalid product ID format",
+			Error:   err.Error(),
+		})
+	}
+
+	// Get the files from the request
+	form, err := c.MultipartForm()
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(responses.ErrorResponse{
+			Success: false,
+			Message: "Failed to parse multipart form",
+			Error:   err.Error(),
+		})
+	}
+
+	files := form.File["files"]
+	if len(files) == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(responses.ErrorResponse{
+			Success: false,
+			Message: "No files provided",
+			Error:   "No files were uploaded",
+		})
+	}
+
+	// Parse primary_index parameter
+	primaryIndexStr := c.FormValue("primary_index", "-1")
+	primaryIndex, err := strconv.Atoi(primaryIndexStr)
+	if err != nil {
+		primaryIndex = -1 // Default to not setting any as primary
+	}
+
+	// Validate primary index is within bounds
+	if primaryIndex >= len(files) {
+		return c.Status(fiber.StatusBadRequest).JSON(responses.ErrorResponse{
+			Success: false,
+			Message: "Invalid primary_index",
+			Error:   "primary_index is out of bounds",
+		})
+	}
+
+	// Upload the images
+	result, err := h.productService.UploadMultipleProductImages(id, files, primaryIndex)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(responses.ErrorResponse{
+			Success: false,
+			Message: "Failed to upload product images",
+			Error:   err.Error(),
+		})
+	}
+
+	// Return response
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"success": true,
+		"message": "Product images uploaded successfully",
 		"data":    result,
 	})
 }

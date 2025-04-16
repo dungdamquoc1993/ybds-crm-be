@@ -694,8 +694,10 @@ func (s *ProductService) UploadProductImage(productID uuid.UUID, fileHeader *mul
 		}, err
 	}
 
-	// Upload the file
-	uploadResult, err := s.UploadService.Upload(fileHeader, "product")
+	subDir := "product-images"
+
+	// Upload the file - Use "dev" subdirectory
+	uploadResult, err := s.UploadService.Upload(fileHeader, subDir)
 	if err != nil {
 		return &ProductImageResult{
 			Success: false,
@@ -1014,4 +1016,173 @@ func (s *ProductService) GetPrimaryImageURL(productID uuid.UUID) string {
 	}
 
 	return ""
+}
+
+// MultipleProductImageResult represents the result of uploading multiple product images
+type MultipleProductImageResult struct {
+	Success   bool                  `json:"success"`
+	Message   string                `json:"message"`
+	Error     string                `json:"error,omitempty"`
+	ProductID uuid.UUID             `json:"product_id"`
+	Images    []*ProductImageResult `json:"images"`
+}
+
+// UploadMultipleProductImages uploads multiple images for a product
+func (s *ProductService) UploadMultipleProductImages(productID uuid.UUID, fileHeaders []*multipart.FileHeader, makePrimaryIdx int) (*MultipleProductImageResult, error) {
+	// Validate input
+	if productID == uuid.Nil {
+		return &MultipleProductImageResult{
+			Success: false,
+			Message: "Image upload failed",
+			Error:   "Product ID is required",
+		}, fmt.Errorf("product ID is required")
+	}
+
+	if len(fileHeaders) == 0 {
+		return &MultipleProductImageResult{
+			Success: false,
+			Message: "Image upload failed",
+			Error:   "No files provided",
+		}, fmt.Errorf("no files provided")
+	}
+
+	// Check if product exists
+	_, err := s.ProductRepo.GetProductByID(productID)
+	if err != nil {
+		return &MultipleProductImageResult{
+			Success: false,
+			Message: "Image upload failed",
+			Error:   "Product not found",
+		}, err
+	}
+
+	// Get existing images to determine if this is the first upload
+	existingImages, err := s.ProductImageRepo.GetImagesByProductID(productID)
+	if err != nil {
+		return &MultipleProductImageResult{
+			Success: false,
+			Message: "Image upload failed",
+			Error:   "Error retrieving existing images",
+		}, err
+	}
+
+	// No existing images means the first one will be primary by default
+	if len(existingImages) == 0 && makePrimaryIdx < 0 {
+		makePrimaryIdx = 0
+	}
+
+	// Use the subdirectory "dev" for the product images
+	subDir := "product-images"
+
+	// Use the batch upload feature of the upload service for efficiency
+	uploadResult, err := s.UploadService.UploadMultiple(fileHeaders, subDir)
+	if err != nil {
+		return &MultipleProductImageResult{
+			Success: false,
+			Message: "Image upload failed",
+			Error:   err.Error(),
+		}, err
+	}
+
+	// Process each uploaded file and create the database records
+	imageResults := make([]*ProductImageResult, 0, len(uploadResult.Files))
+
+	// Get the current highest sort order
+	sortOrder := 0
+	if len(existingImages) > 0 {
+		// Find the highest sort order
+		for _, img := range existingImages {
+			if img.SortOrder > sortOrder {
+				sortOrder = img.SortOrder
+			}
+		}
+	}
+
+	// If we need to set any file as primary, reset all existing primary flags
+	if makePrimaryIdx >= 0 {
+		// Reset all other images to not primary
+		if len(existingImages) > 0 {
+			for _, img := range existingImages {
+				if img.IsPrimary {
+					img.IsPrimary = false
+					if err := s.ProductImageRepo.UpdateImage(&img); err != nil {
+						// Log error but continue
+						fmt.Printf("Error updating existing image primary flag: %v\n", err)
+					}
+				}
+			}
+		}
+	}
+
+	// Store the product image that should be set as primary
+	var primaryImage *product.ProductImage
+
+	// Create product image records for each uploaded file
+	for i, uploadedFile := range uploadResult.Files {
+		sortOrder++ // Increment for each new image
+
+		// Determine if this image should be primary
+		isPrimary := i == makePrimaryIdx
+
+		// Create the product image record
+		productImage := &product.ProductImage{
+			ProductID: productID,
+			URL:       uploadedFile.URL,
+			Filename:  uploadedFile.Filename,
+			IsPrimary: isPrimary,
+			SortOrder: sortOrder,
+		}
+
+		// Save the product image record
+		if err := s.ProductImageRepo.CreateImage(productImage); err != nil {
+			// Log error but continue with other images
+			fmt.Printf("Error saving image record: %v\n", err)
+			continue
+		}
+
+		// If this is a primary image, keep it for updating the product later
+		if isPrimary {
+			primaryImage = productImage
+		}
+
+		// Add to results
+		imageResults = append(imageResults, &ProductImageResult{
+			Success:   true,
+			Message:   "Image uploaded successfully",
+			ImageID:   productImage.ID,
+			ProductID: productID,
+			URL:       productImage.URL,
+			Filename:  productImage.Filename,
+			IsPrimary: productImage.IsPrimary,
+			SortOrder: productImage.SortOrder,
+		})
+	}
+
+	// If we have a primary image, update the product's main image URL
+	if primaryImage != nil {
+		product, err := s.ProductRepo.GetProductByID(productID)
+		if err == nil {
+			product.ImageURL = primaryImage.URL
+			if err := s.ProductRepo.UpdateProduct(product); err != nil {
+				// Log error but continue
+				fmt.Printf("Error updating product main image: %v\n", err)
+			}
+		}
+	}
+
+	if len(imageResults) == 0 {
+		return &MultipleProductImageResult{
+			Success:   false,
+			Message:   "All image uploads failed",
+			Error:     "Failed to process any uploaded images",
+			ProductID: productID,
+		}, fmt.Errorf("failed to process any uploaded images")
+	}
+
+	return &MultipleProductImageResult{
+		Success:   true,
+		Message:   fmt.Sprintf("Successfully processed %d out of %d images", len(imageResults), len(fileHeaders)),
+		ProductID: productID,
+		Images:    imageResults,
+	}, nil
 }

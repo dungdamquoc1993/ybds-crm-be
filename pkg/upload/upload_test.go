@@ -1,9 +1,6 @@
 package upload
 
 import (
-	"bytes"
-	"io"
-	"mime/multipart"
 	"os"
 	"path/filepath"
 	"testing"
@@ -27,80 +24,71 @@ func TestUploadService(t *testing.T) {
 		t.Fatalf("Failed to create upload service: %v", err)
 	}
 
-	// Create a test file
-	testFile := filepath.Join(tempDir, "test.jpg")
-	if err := os.WriteFile(testFile, []byte("test image content"), 0644); err != nil {
-		t.Fatalf("Failed to create test file: %v", err)
-	}
-
-	// Create a multipart file header
-	file, err := os.Open(testFile)
-	if err != nil {
-		t.Fatalf("Failed to open test file: %v", err)
-	}
-	defer file.Close()
-
-	// Create a buffer to write the file content
-	var buf bytes.Buffer
-	writer := multipart.NewWriter(&buf)
-
-	// Create a form file
-	part, err := writer.CreateFormFile("file", "test.jpg")
-	if err != nil {
-		t.Fatalf("Failed to create form file: %v", err)
-	}
-
-	// Copy the file content to the form file
-	_, err = io.Copy(part, file)
-	if err != nil {
-		t.Fatalf("Failed to copy file content: %v", err)
-	}
-
-	// Close the writer
-	writer.Close()
-
-	// Create a multipart file header for testing
-	fileHeader := &multipart.FileHeader{
-		Filename: "test.jpg",
-		Size:     int64(buf.Len()),
-		Header:   make(map[string][]string),
-	}
-	fileHeader.Header.Set("Content-Type", "image/jpeg")
-
-	// Test the upload function
-	t.Run("Upload", func(t *testing.T) {
-		// This is a simplified test since we can't easily create a real multipart.FileHeader
-		// In a real test, you would use httptest to simulate a file upload
-
-		// For now, we'll just test the filename generation and other functions
+	// Test the filename generation
+	t.Run("FilenameGeneration", func(t *testing.T) {
+		// Test with prefix
 		filename := service.generateFilename("test.jpg", "prefix")
 		if filename == "" {
 			t.Errorf("Generated filename is empty")
 		}
+		if filepath.Ext(filename) != ".jpg" {
+			t.Errorf("Expected extension .jpg, got %s", filepath.Ext(filename))
+		}
+		if len(filename) < 20 { // Should have prefix, timestamp, and random string
+			t.Errorf("Filename too short: %s", filename)
+		}
 
+		// Test without prefix
+		filename = service.generateFilename("test.jpg", "")
+		if filename == "" {
+			t.Errorf("Generated filename is empty")
+		}
 		if filepath.Ext(filename) != ".jpg" {
 			t.Errorf("Expected extension .jpg, got %s", filepath.Ext(filename))
 		}
 	})
 
-	// Test the delete function
-	t.Run("Delete", func(t *testing.T) {
-		// Create a test file to delete
-		testDeleteFile := filepath.Join(tempDir, "delete_test.jpg")
-		if err := os.WriteFile(testDeleteFile, []byte("test content"), 0644); err != nil {
+	// Test file deletion
+	t.Run("FileDelete", func(t *testing.T) {
+		// Create a test file
+		testFilename := "delete_test.jpg"
+		testPath := filepath.Join(tempDir, testFilename)
+		if err := os.WriteFile(testPath, []byte("test content"), 0644); err != nil {
 			t.Fatalf("Failed to create test file: %v", err)
 		}
 
+		// Verify file exists
+		if _, err := os.Stat(testPath); os.IsNotExist(err) {
+			t.Fatalf("Test file doesn't exist: %s", testPath)
+		}
+
 		// Delete the file
-		err := service.Delete("delete_test.jpg")
+		err := service.Delete(testFilename)
 		if err != nil {
 			t.Errorf("Failed to delete file: %v", err)
 		}
 
-		// Check if the file was deleted
-		_, err = os.Stat(testDeleteFile)
-		if !os.IsNotExist(err) {
-			t.Errorf("File was not deleted")
+		// Check if file was deleted
+		if _, err := os.Stat(testPath); !os.IsNotExist(err) {
+			t.Errorf("File was not deleted: %s", testPath)
 		}
 	})
+
+	// Test file deletion with invalid filename
+	t.Run("InvalidFileDelete", func(t *testing.T) {
+		err := service.Delete("../../../etc/passwd")
+		if err == nil {
+			t.Error("Should have rejected path traversal attempt")
+		}
+
+		err = service.Delete("nonexistent.jpg")
+		if err == nil {
+			t.Error("Should have reported an error for non-existent file")
+		}
+	})
+}
+
+func TestS3Upload(t *testing.T) {
+	// Skip this test as it requires AWS credentials
+	t.Skip("Skipping S3 tests - requires AWS credentials")
 }

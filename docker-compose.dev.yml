@@ -28,6 +28,12 @@ services:
       - UPLOAD_DIR=${UPLOAD_DIR}
       - UPLOAD_MAX_SIZE_MB=${UPLOAD_MAX_SIZE_MB}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      # S3 settings
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - AWS_BUCKET_NAME=${AWS_BUCKET_NAME}
+      - AWS_S3_PREFIX=${AWS_S3_PREFIX}
     volumes:
       - uploads-data:/app/uploads
       - ./:/app/src
