@@ -34,6 +34,8 @@ services:
       - AWS_REGION=${AWS_REGION}
       - AWS_BUCKET_NAME=${AWS_BUCKET_NAME}
       - AWS_S3_PREFIX=${AWS_S3_PREFIX}
+      # GHN webhook secret
+      - GHN_WEBHOOK_SECRET=${GHN_WEBHOOK_SECRET}
     volumes:
       - uploads-data:/app/uploads
       - ./:/app/src

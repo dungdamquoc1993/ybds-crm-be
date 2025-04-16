@@ -174,6 +174,9 @@ func main() {
 	// Create API routes
 	api := app.Group("/api")
 
+	// Create webhook routes
+	webhook := app.Group("/webhook")
+
 	// Health check
 	api.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
@@ -240,6 +243,9 @@ func main() {
 
 	// Register order routes using the RegisterRoutes method
 	orderHandler.RegisterRoutes(adminOrAgentRoutes, middleware.JWTAuth(jwtService))
+
+	// Register GHN webhook route
+	webhook.Post("/ghn/order_status", orderHandler.HandleGHNOrderStatusWebhook)
 
 	// Start server
 	serverPort := fmt.Sprintf(":%s", cfg.Server.Port)

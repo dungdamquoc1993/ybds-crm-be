@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"fmt"
 	"log"
 	"math"
+	"os"
 	"strconv"
 	"time"
 
@@ -1815,4 +1817,72 @@ func (h *OrderHandler) GetOrderByTrackingNumber(c *fiber.Ctx) error {
 			UpdatedAt:        o.UpdatedAt,
 		},
 	})
+}
+
+// ORDER STATUS WEBHOOK FOR GHN NOT USE YET
+func (h *OrderHandler) HandleGHNOrderStatusWebhook(c *fiber.Ctx) error {
+	// 1. Optional: validate GHN token via header or query
+	ghnToken := c.Get("X-GHN-Token")
+	if ghnToken != os.Getenv("GHN_WEBHOOK_SECRET") {
+		return c.SendStatus(fiber.StatusUnauthorized)
+	}
+
+	// 2. Parse JSON body
+	var payload GHNWebhookPayload
+	if err := c.BodyParser(&payload); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Invalid payload",
+			"error":   err.Error(),
+		})
+	}
+
+	// 3. Log & process
+	fmt.Printf("GHN webhook: %+v\n", payload)
+
+	// TODO: update order by payload.OrderCode, set status = payload.Status
+
+	return c.SendStatus(fiber.StatusOK)
+}
+
+type GHNWebhookPayload struct {
+	CODAmount         float64      `json:"CODAmount"`
+	CODTransferDate   *string      `json:"CODTransferDate"` // dùng *string để chấp nhận null
+	ClientOrderCode   string       `json:"ClientOrderCode"`
+	ConvertedWeight   float64      `json:"ConvertedWeight"`
+	Description       string       `json:"Description"`
+	Fee               GHNFeeDetail `json:"Fee"`
+	Height            float64      `json:"Height"`
+	IsPartialReturn   bool         `json:"IsPartialReturn"`
+	Length            float64      `json:"Length"`
+	OrderCode         string       `json:"OrderCode"`
+	PartialReturnCode string       `json:"PartialReturnCode"`
+	PaymentType       int          `json:"PaymentType"`
+	Reason            string       `json:"Reason"`
+	ReasonCode        string       `json:"ReasonCode"`
+	ShopID            int64        `json:"ShopID"`
+	Status            string       `json:"Status"`
+	Time              string       `json:"Time"` // ISO8601, nếu muốn thì có thể dùng time.Time và custom unmarshal
+	TotalFee          float64      `json:"TotalFee"`
+	Type              string       `json:"Type"`
+	Warehouse         string       `json:"Warehouse"`
+	Weight            float64      `json:"Weight"`
+	Width             float64      `json:"Width"`
+}
+
+type GHNFeeDetail struct {
+	CODFailedFee          float64 `json:"CODFailedFee"`
+	CODFee                float64 `json:"CODFee"`
+	Coupon                float64 `json:"Coupon"`
+	DeliverRemoteAreasFee float64 `json:"DeliverRemoteAreasFee"`
+	DocumentReturn        float64 `json:"DocumentReturn"`
+	DoubleCheck           float64 `json:"DoubleCheck"`
+	Insurance             float64 `json:"Insurance"`
+	MainService           float64 `json:"MainService"`
+	PickRemoteAreasFee    float64 `json:"PickRemoteAreasFee"`
+	R2S                   float64 `json:"R2S"`
+	Return                float64 `json:"Return"`
+	StationDO             float64 `json:"StationDO"`
+	StationPU             float64 `json:"StationPU"`
+	Total                 float64 `json:"Total"`
 }

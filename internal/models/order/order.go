@@ -22,21 +22,34 @@ type OrderStatus string
 const (
 	// OrderPendingConfirmation means the order is waiting for confirmation
 	OrderPendingConfirmation OrderStatus = "pending_confirmation"
+
 	// OrderConfirmed means the order has been confirmed
 	OrderConfirmed OrderStatus = "confirmed"
+
 	// OrderShipmentRequested means a shipment has been requested for the order
 	OrderShipmentRequested OrderStatus = "shipment_requested"
+
 	// OrderPacked means the order has been packed and is ready for shipping
 	OrderPacked OrderStatus = "packed"
-	// OrderShipped means the order has been shipped
+
+	// OrderShipped means the order has been picked up by the shipping company corresponding to the picked status in GHN
 	OrderShipped OrderStatus = "shipped"
-	// OrderDelivered means the order has been delivered
+
+	// OrderDelivering means the order is being delivered by the shipping company
+	// corresponding to the status in GHN: storing, transporting, delivering, delivery_fail, waiting_to_return
+	OrderDelivering OrderStatus = "delivering" // this status is not apply to application yet
+
+	// OrderDelivered means the order has been delivered by the shipping company corresponding to the delivered status in GHN
 	OrderDelivered OrderStatus = "delivered"
-	// OrderReturnProcessing means the order return is being processed
+
+	// OrderReturnProcessing means the order return is being processed by the shipping company
+	// corresponding to the status in GHN: return, return_transporting, returning, retrun_fail
 	OrderReturnProcessing OrderStatus = "return_processing"
-	// OrderReturned means the order has been returned
+
+	// OrderReturned means the order has been returned by the shipping company corresponding to the returned status in GHN
 	OrderReturned OrderStatus = "returned"
-	// OrderCanceled means the order has been canceled
+
+	// OrderCanceled means the order has been canceled corresponding to the canceled status in GHN
 	OrderCanceled OrderStatus = "canceled"
 )
 

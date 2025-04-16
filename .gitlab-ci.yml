@@ -98,6 +98,8 @@ deploy:
       export AWS_BUCKET_NAME=$AWS_BUCKET_NAME &&
       export AWS_S3_PREFIX=$AWS_S3_PREFIX &&
 
+      export GHN_WEBHOOK_SECRET=$GHN_WEBHOOK_SECRET &&
+
       docker rm -f $YBDS_BE_CONTAINER_NAME || true &&
       docker-compose -f docker-compose.ybds-be.prod.yml pull && 
       docker-compose -f docker-compose.ybds-be.prod.yml up -d --force-recreate &&
