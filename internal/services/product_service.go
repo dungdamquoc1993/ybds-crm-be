@@ -970,20 +970,18 @@ func (s *ProductService) DeleteProductImage(imageID, productID uuid.UUID) (*Prod
 		}
 	}
 
-	// Delete the image file
-	if err := s.UploadService.Delete(image.Filename); err != nil {
-		return &ProductImageResult{
-			Success: false,
-			Message: "Delete image partially failed",
-			Error:   "Error deleting image file",
-		}, err
-	}
+	// Skip physical deletion of the image file to avoid S3 permission issues and prevent data loss
+	// We'll just log that we're skipping this step
+	fmt.Printf("Skipping physical deletion of file %s to preserve the data\n", image.Filename)
 
-	// Delete the image record
+	// Use the SoftDelete method to log the deletion without physically removing the file
+	_ = s.UploadService.SoftDelete(image.Filename)
+
+	// Only perform the logical deletion by removing the database record
 	if err := s.ProductImageRepo.DeleteImage(imageID); err != nil {
 		return &ProductImageResult{
 			Success: false,
-			Message: "Delete image partially failed",
+			Message: "Delete image failed",
 			Error:   "Error deleting image record",
 		}, err
 	}

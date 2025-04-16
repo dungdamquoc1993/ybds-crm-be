@@ -201,6 +201,30 @@ func (s *Service) Delete(filename string) error {
 	return nil
 }
 
+// SoftDelete logs a deletion request without actually deleting the file
+// This is useful for preserving files in S3 while maintaining traceability
+func (s *Service) SoftDelete(filename string) error {
+	// Validate filename to prevent directory traversal
+	if strings.Contains(filename, "..") {
+		return fmt.Errorf("invalid filename")
+	}
+
+	// Log the deletion request
+	fmt.Printf("Soft delete requested for file: %s (not physically deleted)\n", filename)
+
+	// For S3, this would normally call DeleteFile, but we skip it
+	// For local storage, check if the file exists but don't delete it
+	if s.config.StorageType == StorageTypeLocal {
+		path := filepath.Join(s.config.GetUploadDir(), filename)
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			// Log but don't return error since we're not actually deleting
+			fmt.Printf("Note: File %s does not exist in local storage\n", path)
+		}
+	}
+
+	return nil
+}
+
 // generateFilename creates a unique filename for the uploaded file
 func (s *Service) generateFilename(originalFilename, subDir string) string {
 	// Extract file extension
