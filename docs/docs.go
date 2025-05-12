@@ -643,7 +643,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Create a new order with items and optional shipment information. Only customer_name and items are required, all other fields are optional.",
+                "description": "Create a new order with items and optional shipment information. Only customer_name and items are required, all other fields are optional. Customer phone number must be a valid Vietnamese number.",
                 "consumes": [
                     "application/json"
                 ],
@@ -803,6 +803,85 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/orders/phone/{phone}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Get a list of all orders with a specific customer phone number",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Get orders by phone number",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Customer phone number",
+                        "name": "phone",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by start date (YYYY-MM-DD)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by end date (YYYY-MM-DD)",
+                        "name": "to_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.OrdersResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/responses.ErrorResponse"
                         }
@@ -986,7 +1065,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Update the details of an order including payment details, shipping address, and customer information. Admins can update any order. Agents can only update orders with status 'pending_confirmation', 'confirmed', or 'shipment_requested'.",
+                "description": "Update the details of an order including payment details, shipping address, and customer information. Customer phone number must be a valid Vietnamese number. Admins can update any order. Agents can only update orders with status 'pending_confirmation', 'confirmed', or 'shipment_requested'.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2599,7 +2678,7 @@ const docTemplate = `{
                 },
                 "customer_phone": {
                     "type": "string",
-                    "example": "1234567890"
+                    "example": "0912345678"
                 },
                 "discount_amount": {
                     "type": "number",
@@ -2742,7 +2821,7 @@ const docTemplate = `{
                 },
                 "customer_phone": {
                     "type": "string",
-                    "example": "1234567890"
+                    "example": "0912345678"
                 },
                 "discount_amount": {
                     "type": "number",

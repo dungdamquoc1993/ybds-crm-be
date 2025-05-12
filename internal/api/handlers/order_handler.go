@@ -39,6 +39,7 @@ func (h *OrderHandler) RegisterRoutes(router fiber.Router, authMiddleware fiber.
 	orders.Get("/", h.GetOrders)
 	orders.Get("/:id", h.GetOrderByID)
 	orders.Get("/tracking/:number", h.GetOrderByTrackingNumber)
+	orders.Get("/phone/:phone", h.GetOrdersByPhoneNumber)
 	orders.Put("/:id/details", h.UpdateOrderDetails)
 	orders.Put("/:id/shipment", h.UpdateShipment)
 	orders.Put("/:id/status", h.UpdateOrderStatus)
@@ -56,7 +57,7 @@ func (h *OrderHandler) RegisterRoutes(router fiber.Router, authMiddleware fiber.
 
 // CreateOrder godoc
 // @Summary Create a new order
-// @Description Create a new order with items and optional shipment information. Only customer_name and items are required, all other fields are optional.
+// @Description Create a new order with items and optional shipment information. Only customer_name and items are required, all other fields are optional. Customer phone number must be a valid Vietnamese number.
 // @Tags orders
 // @Accept json
 // @Produce json
@@ -89,10 +90,17 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 
 	// Validate request
 	if err := req.Validate(); err != nil {
+		errorMessage := err.Error()
+
+		// Add more context for phone validation errors
+		if errorMessage == "invalid Vietnamese phone number format" {
+			errorMessage = "Phone number must be a valid Vietnamese mobile or landline number (e.g., 0912345678, 0281234567)"
+		}
+
 		return c.Status(fiber.StatusBadRequest).JSON(responses.ErrorResponse{
 			Success: false,
 			Message: "Validation failed",
-			Error:   err.Error(),
+			Error:   errorMessage,
 		})
 	}
 
@@ -1203,7 +1211,7 @@ func (h *OrderHandler) DeleteOrderItem(c *fiber.Ctx) error {
 
 // UpdateOrderDetails godoc
 // @Summary Update order details
-// @Description Update the details of an order including payment details, shipping address, and customer information. Admins can update any order. Agents can only update orders with status 'pending_confirmation', 'confirmed', or 'shipment_requested'.
+// @Description Update the details of an order including payment details, shipping address, and customer information. Customer phone number must be a valid Vietnamese number. Admins can update any order. Agents can only update orders with status 'pending_confirmation', 'confirmed', or 'shipment_requested'.
 // @Tags orders
 // @Accept json
 // @Produce json
@@ -1301,10 +1309,17 @@ func (h *OrderHandler) UpdateOrderDetails(c *fiber.Ctx) error {
 
 	// Validate request
 	if err := req.Validate(); err != nil {
+		errorMessage := err.Error()
+
+		// Add more context for phone validation errors
+		if errorMessage == "invalid Vietnamese phone number format" {
+			errorMessage = "Phone number must be a valid Vietnamese mobile or landline number (e.g., 0912345678, 0281234567)"
+		}
+
 		return c.Status(fiber.StatusBadRequest).JSON(responses.ErrorResponse{
 			Success: false,
 			Message: "Validation failed",
-			Error:   err.Error(),
+			Error:   errorMessage,
 		})
 	}
 
@@ -1816,6 +1831,203 @@ func (h *OrderHandler) GetOrderByTrackingNumber(c *fiber.Ctx) error {
 			CreatedAt:        o.CreatedAt,
 			UpdatedAt:        o.UpdatedAt,
 		},
+	})
+}
+
+// GetOrdersByPhoneNumber godoc
+// @Summary Get orders by phone number
+// @Description Get a list of all orders with a specific customer phone number
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param phone path string true "Customer phone number"
+// @Param page query int false "Page number"
+// @Param page_size query int false "Page size"
+// @Param status query string false "Filter by status"
+// @Param from_date query string false "Filter by start date (YYYY-MM-DD)"
+// @Param to_date query string false "Filter by end date (YYYY-MM-DD)"
+// @Success 200 {object} responses.OrdersResponse
+// @Failure 400 {object} responses.ErrorResponse
+// @Failure 500 {object} responses.ErrorResponse
+// @Router /api/orders/phone/{phone} [get]
+// @Security ApiKeyAuth
+func (h *OrderHandler) GetOrdersByPhoneNumber(c *fiber.Ctx) error {
+	// Get phone number from path parameter
+	phoneNumber := c.Params("phone")
+	if phoneNumber == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(responses.ErrorResponse{
+			Success: false,
+			Message: "Phone number is required",
+			Error:   "Missing phone number",
+		})
+	}
+
+	// Parse pagination parameters
+	page, err := strconv.Atoi(c.Query("page", "1"))
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	pageSize, err := strconv.Atoi(c.Query("page_size", "10"))
+	if err != nil || pageSize < 1 {
+		pageSize = 10
+	}
+
+	// Initialize additional filters
+	additionalFilters := make(map[string]interface{})
+
+	// Apply status filter if provided
+	if status := c.Query("status"); status != "" {
+		additionalFilters["order_status"] = status
+	}
+
+	// Apply from_date filter if provided
+	if fromDate := c.Query("from_date"); fromDate != "" {
+		// Parse date in format YYYY-MM-DD
+		date, err := time.Parse("2006-01-02", fromDate)
+		if err == nil {
+			// Set time to beginning of day
+			date = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
+			additionalFilters["from_date"] = date
+		}
+	}
+
+	// Apply to_date filter if provided
+	if toDate := c.Query("to_date"); toDate != "" {
+		// Parse date in format YYYY-MM-DD
+		date, err := time.Parse("2006-01-02", toDate)
+		if err == nil {
+			// Set time to end of day
+			date = time.Date(date.Year(), date.Month(), date.Day(), 23, 59, 59, 999999999, date.Location())
+			additionalFilters["to_date"] = date
+		}
+	}
+
+	// Get orders by phone number using dedicated method
+	orders, total, err := h.orderService.GetOrdersByPhoneNumber(phoneNumber, page, pageSize, additionalFilters)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(responses.ErrorResponse{
+			Success: false,
+			Message: "Failed to get orders",
+			Error:   err.Error(),
+		})
+	}
+
+	// Format response data
+	var orderList []responses.OrderDetail
+
+	// Create user info cache to avoid repeated database queries
+	userCache := make(map[uuid.UUID]string)
+
+	for _, o := range orders {
+		// Get creator name if available
+		var creatorName string
+		if o.CreatedBy != nil {
+			// Check if we already have this user in cache
+			if name, found := userCache[*o.CreatedBy]; found {
+				creatorName = name
+			} else {
+				// If not in cache, fetch from database
+				user, err := h.orderService.UserService.GetUserByID(*o.CreatedBy)
+				if err == nil {
+					creatorName = user.Username
+					// Add to cache
+					userCache[*o.CreatedBy] = creatorName
+				}
+			}
+		}
+
+		// Create basic order detail
+		orderDetail := responses.OrderDetail{
+			ID:               o.ID,
+			CustomerName:     o.CustomerName,
+			CustomerEmail:    o.CustomerEmail,
+			CustomerPhone:    o.CustomerPhone,
+			ShippingAddress:  o.ShippingAddress,
+			ShippingWard:     o.ShippingWard,
+			ShippingDistrict: o.ShippingDistrict,
+			ShippingCity:     o.ShippingCity,
+			ShippingCountry:  o.ShippingCountry,
+			PaymentMethod:    string(o.PaymentMethod),
+			Status:           string(o.OrderStatus),
+			Notes:            o.Notes,
+			Total:            o.TotalAmount,
+			DiscountAmount:   o.DiscountAmount,
+			DiscountReason:   o.DiscountReason,
+			FinalTotal:       o.FinalTotalAmount,
+			CreatedAt:        o.CreatedAt,
+			UpdatedAt:        o.UpdatedAt,
+		}
+
+		// Set created by if available
+		if o.CreatedBy != nil {
+			orderDetail.CreatedBy = *o.CreatedBy
+			orderDetail.CreatedByName = creatorName
+		}
+
+		// Add shipment info if available
+		if o.Shipment != nil {
+			orderDetail.Shipment = &responses.ShipmentResponse{
+				ID:             o.Shipment.ID,
+				OrderID:        o.Shipment.OrderID,
+				TrackingNumber: o.Shipment.TrackingNumber,
+				Carrier:        o.Shipment.Carrier,
+				CreatedAt:      o.Shipment.CreatedAt,
+				UpdatedAt:      o.Shipment.UpdatedAt,
+			}
+		}
+
+		// Add items if available
+		items := make([]responses.OrderItemResponse, len(o.Items))
+		for i, item := range o.Items {
+			// Create basic item
+			items[i] = responses.OrderItemResponse{
+				ID:          item.ID,
+				OrderID:     item.OrderID,
+				InventoryID: item.InventoryID,
+				Quantity:    item.Quantity,
+				Price:       item.PriceAtOrder,
+				Subtotal:    item.PriceAtOrder * float64(item.Quantity),
+				CreatedAt:   item.CreatedAt,
+				UpdatedAt:   item.UpdatedAt,
+			}
+
+			// Get inventory details if needed
+			inventory, err := h.orderService.ProductService.GetInventoryByID(item.InventoryID)
+			if err == nil && inventory != nil {
+				// Add inventory details
+				items[i].Size = inventory.Size
+				items[i].Color = inventory.Color
+
+				// Get product details if available
+				product, err := h.orderService.ProductService.GetProductByID(inventory.ProductID)
+				if err == nil && product != nil {
+					items[i].ProductID = product.ID
+					items[i].ProductName = product.Name
+
+					// Get price details if available
+					price, err := h.orderService.ProductService.GetCurrentPrice(product.ID)
+					if err == nil && price != nil {
+						items[i].PriceID = price.ID
+						items[i].Currency = price.Currency
+					}
+				}
+			}
+		}
+
+		orderDetail.Items = items
+		orderList = append(orderList, orderDetail)
+	}
+
+	// Return response
+	return c.Status(fiber.StatusOK).JSON(responses.OrdersResponse{
+		Success:    true,
+		Message:    "Orders retrieved successfully",
+		Data:       orderList,
+		Total:      total,
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: int64(math.Ceil(float64(total) / float64(pageSize))),
 	})
 }
 

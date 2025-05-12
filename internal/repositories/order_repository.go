@@ -1,6 +1,8 @@
 package repositories
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/ybds/internal/models/order"
 	"gorm.io/gorm"
@@ -180,4 +182,52 @@ func (r *OrderRepository) UpdateShipment(shipment *order.Shipment) error {
 // DeleteShipment deletes a shipment by ID
 func (r *OrderRepository) DeleteShipment(id uuid.UUID) error {
 	return r.db.Delete(&order.Shipment{}, id).Error
+}
+
+// GetOrdersByPhoneNumber retrieves orders with a specific phone number with pagination
+func (r *OrderRepository) GetOrdersByPhoneNumber(phoneNumber string, page, pageSize int, additionalFilters map[string]interface{}) ([]order.Order, int64, error) {
+	var orders []order.Order
+	var total int64
+
+	// Start building the query
+	query := r.db.Model(&order.Order{}).Where("customer_phone LIKE ?", "%"+phoneNumber+"%")
+
+	// Apply additional filters if provided
+	if additionalFilters != nil {
+		// Apply order status filter
+		if status, ok := additionalFilters["order_status"].(string); ok && status != "" {
+			query = query.Where("order_status = ?", status)
+		}
+
+		// Apply date range filters
+		if fromDate, ok := additionalFilters["from_date"].(time.Time); ok {
+			query = query.Where("created_at >= ?", fromDate)
+		}
+
+		if toDate, ok := additionalFilters["to_date"].(time.Time); ok {
+			query = query.Where("created_at <= ?", toDate)
+		}
+	}
+
+	// Count total records
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Apply pagination
+	offset := (page - 1) * pageSize
+	query = query.Offset(offset).Limit(pageSize)
+
+	// Order by created_at in descending order (newest first)
+	query = query.Order("created_at DESC")
+
+	// Execute the query
+	if err := query.
+		Preload("Items").
+		Preload("Shipment").
+		Find(&orders).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return orders, total, nil
 }

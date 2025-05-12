@@ -389,8 +389,11 @@ func (s *OrderService) handleInventoryForStatusChange(tx *gorm.DB, o *order.Orde
 
 	// Handle inventory changes based on status transition
 	switch {
-	// When transitioning to packed status, reduce inventory
-	case newStatus == order.OrderPacked:
+	// When transitioning from shipment_requested to packed, picked, delivering, or delivered status, reduce inventory
+	case oldStatus == order.OrderShipmentRequested && (newStatus == order.OrderPacked ||
+		newStatus == order.OrderPicked ||
+		newStatus == order.OrderDelivering ||
+		newStatus == order.OrderDelivered):
 		for _, item := range items {
 			if err := s.ProductService.ReserveInventory(item.InventoryID, item.Quantity); err != nil {
 				return err
@@ -405,8 +408,11 @@ func (s *OrderService) handleInventoryForStatusChange(tx *gorm.DB, o *order.Orde
 			}
 		}
 
-	// When canceling an order that was in packed or picked status, increase inventory
-	case newStatus == order.OrderCanceled && (oldStatus == order.OrderPacked || oldStatus == order.OrderPicked):
+	// When canceling an order that was in packed, picked, delivering, or delivered status, increase inventory
+	case newStatus == order.OrderCanceled && (oldStatus == order.OrderPacked ||
+		oldStatus == order.OrderPicked ||
+		oldStatus == order.OrderDelivering ||
+		oldStatus == order.OrderDelivered):
 		for _, item := range items {
 			if err := s.ProductService.ReleaseInventory(item.InventoryID, item.Quantity); err != nil {
 				return err
@@ -433,16 +439,19 @@ func isValidStatusTransition(oldStatus, newStatus order.OrderStatus) bool {
 		order.OrderShipmentRequested: {
 			order.OrderPacked,
 			order.OrderPicked,
-			order.OrderDelivering, // Allow direct transition to delivering
+			order.OrderDelivering,
+			order.OrderDelivered, // Allow direct transition to delivered
 			order.OrderCanceled,
 		},
 		order.OrderPacked: {
 			order.OrderPicked,
-			order.OrderDelivering, // Allow direct transition to delivering in case picked is skipped
+			order.OrderDelivering,
+			order.OrderDelivered, // Allow direct transition to delivered
 			order.OrderCanceled,
 		},
 		order.OrderPicked: {
 			order.OrderDelivering,
+			order.OrderDelivered, // Allow direct transition to delivered
 			order.OrderCanceled,
 		},
 		order.OrderDelivering: {
@@ -964,4 +973,13 @@ func (s *OrderService) GetOrderByTrackingNumber(trackingNumber string) (*order.O
 		return nil, fmt.Errorf("tracking number is required")
 	}
 	return s.OrderRepo.GetOrderByTrackingNumber(trackingNumber)
+}
+
+// GetOrdersByPhoneNumber retrieves orders by customer phone number with pagination
+func (s *OrderService) GetOrdersByPhoneNumber(phoneNumber string, page, pageSize int, additionalFilters map[string]interface{}) ([]order.Order, int64, error) {
+	if phoneNumber == "" {
+		return nil, 0, fmt.Errorf("phone number is required")
+	}
+
+	return s.OrderRepo.GetOrdersByPhoneNumber(phoneNumber, page, pageSize, additionalFilters)
 }

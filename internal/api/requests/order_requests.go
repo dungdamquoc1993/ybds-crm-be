@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/ybds/internal/utils"
 )
 
 // OrderItemInfo represents an item to be added to an order
@@ -41,7 +42,7 @@ type CreateOrderRequest struct {
 	// Customer information
 	CustomerName  string `json:"customer_name" example:"John Doe" required:"true"`
 	CustomerEmail string `json:"customer_email" example:"john@example.com"`
-	CustomerPhone string `json:"customer_phone" example:"1234567890"`
+	CustomerPhone string `json:"customer_phone" example:"0912345678"`
 	// Shipment information
 	ShipmentTrackingNumber string `json:"shipment_tracking_number" example:"TRACK123456789"`
 	ShipmentCarrier        string `json:"shipment_carrier" example:"DHL"`
@@ -51,6 +52,11 @@ type CreateOrderRequest struct {
 func (r *CreateOrderRequest) Validate() error {
 	if r.CustomerName == "" {
 		return errors.New("customer name is required")
+	}
+
+	// Validate Vietnamese phone number if provided
+	if r.CustomerPhone != "" && !utils.IsValidVietnamesePhone(r.CustomerPhone) {
+		return errors.New("invalid Vietnamese phone number format")
 	}
 
 	if len(r.Items) == 0 {
@@ -126,12 +132,16 @@ type UpdateOrderDetailsRequest struct {
 	// Customer information
 	CustomerName  string `json:"customer_name" example:"John Doe"`
 	CustomerEmail string `json:"customer_email" example:"john@example.com"`
-	CustomerPhone string `json:"customer_phone" example:"1234567890"`
+	CustomerPhone string `json:"customer_phone" example:"0912345678"`
 }
 
 // Validate validates the update order details request
 func (r *UpdateOrderDetailsRequest) Validate() error {
-	// No validation needed as all fields are optional
+	// Validate Vietnamese phone number if provided
+	if r.CustomerPhone != "" && !utils.IsValidVietnamesePhone(r.CustomerPhone) {
+		return errors.New("invalid Vietnamese phone number format")
+	}
+
 	return nil
 }
 
